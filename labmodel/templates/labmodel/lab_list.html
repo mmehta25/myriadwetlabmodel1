@@ -1,0 +1,16 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+  <h1>Lab Template List</h1>
+  {% if lab_list %}
+  <ul>
+    {% for lab in lab_list %}
+      <li>
+        <a href="{{ lab.get_absolute_url }}">{{ lab.name }}</a> ({{lab.processes}})
+      </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+    <p>There are no lab templates created yet.</p>
+  {% endif %} 
+{% endblock %}

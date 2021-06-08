@@ -1,0 +1,12 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+  <h1>Myriad Wetlab Capacity Planning Tool</h1>
+  <p>Software Engineer Intern Project | Summer 2021 |<em>Myriad Genetics</em></p>
+  <h2>Dynamic content</h2>
+  <p>Summary:</p>
+  <ul>
+    <li><strong>Lab Templates:</strong> {{ num_labs }}</li>
+    <li><strong>Instrument Types:</strong> {{ num_instrument_types }}</li>
+  </ul>
+{% endblock %}

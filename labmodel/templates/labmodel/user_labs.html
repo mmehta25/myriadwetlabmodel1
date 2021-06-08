@@ -1,0 +1,19 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+    <h1>Lab Models created by: {{ user.get_username }}</h1>
+
+    {% if lab_list %}
+    <ul>
+
+      {% for lab in lab_list %}
+      <li>
+        <a href="">{{lab.name}}</a> ({{ lab.name }})
+      </li>
+      {% endfor %}
+    </ul>
+
+    {% else %}
+      <p>There are no labs created by this user.</p>
+    {% endif %}
+{% endblock %}
