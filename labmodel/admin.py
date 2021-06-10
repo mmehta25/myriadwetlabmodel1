@@ -16,9 +16,14 @@ class LabAdmin(admin.ModelAdmin):
 class AssayAdmin(admin.ModelAdmin):
     list_display = ('name', 'id')
 
+class ProcessInstanceInline(admin.TabularInline):
+	extra = 0
+	model = ProcessInstance
+
 @admin.register(Process)
 class ProcessAdmin(admin.ModelAdmin):
     list_display = ('name', 'duration', 'sample_count')
+    inlines = [ProcessInstanceInline]
 
 @admin.register(ProcessInstance)
 class ProcessInstanceAdmin(admin.ModelAdmin):

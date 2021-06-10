@@ -3,10 +3,12 @@ from .models import Lab, Assay, Process, ProcessInstance, Instrument, Instrument
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views import generic
 from django.views.generic.edit import CreateView, UpdateView
+from django.views.generic import ListView, TemplateView
 from django.urls import reverse_lazy
 from django.urls import reverse
 from django.forms.models import inlineformset_factory
-
+from .forms import AssayFormSet
+from django.shortcuts import redirect
 # Create your views here.
 def index(request):
     """View function for home page of site."""
@@ -43,58 +45,41 @@ class UserLabsListView(LoginRequiredMixin,generic.ListView):
     def get_queryset(self):
         return Lab.objects.filter(creator=self.request.user)
 
-# def manage_assays(request, lab_id=1):
-#     """Edit children and their addresses for a single parent."""
-
-#     lab = get_object_or_404(Lab, id=lab_id)
-
-#     if request.method == 'POST':
-#         formset = AssaysFormset(request.POST, instance=lab)
-#         if formset.is_valid():
-#             formset.save()
-#             return redirect('my-created')
-#     else:
-#         formset = AssaysFormset(instance=lab)
-
-#     return render(request, 'lab_form.html', {
-#                   'lab':lab,
-#                   'assay_formset':formset})
-AssayFormset = inlineformset_factory(
-    Lab, Assay, fields=('name',)
-)
-class LabCreate(CreateView):
+class LabDetailView(generic.DetailView):
     model = Lab
-    fields = ['name', 'creator', 'days_per_month', 'integrated_hours', 'walkup_hours']
-    #initial = {'date_of_death': '11/06/2020'}
 
-    def get_context_data(self, **kwargs):
-        # we need to overwrite get_context_data
-        # to make sure that our formset is rendered
-        data = super().get_context_data(**kwargs)
-        if self.request.POST:
-            data["assays"] = AssayFormset(self.request.POST)
-        else:
-            data["assays"] = AssayFormset()
-        return data
-
-    def form_valid(self, form):
-        context = self.get_context_data()
-        assays = context["assays"]
-        self.object = form.save()
-        if assays.is_valid():
-            assays.instance = self.object
-            assays.save()
-        return super().form_valid(form)
-
-    def get_success_url(self):
-        return reverse("my-created")
-
-class LabUpdate(UpdateView):
-    model = Lab
-    fields = '__all__' # Not recommended (potential security issue if more fields added)
-
+class ProcessInstanceDetailView(generic.DetailView):
+    model = ProcessInstance
 # class LabListView(generic.ListView):
 #     model = Lab
 #     context_object_name = 'my_lab_list'   # your own name for the list as a template variable
 #     #queryset = Book.objects.filter(title__icontains='war')[:5] # Get 5 books containing the title war
 #     template_name = 'labs/lab_list.html'  # Specify your own template name/location
+
+# Forms ##########################################################
+class AssayAddView(TemplateView):
+	template_name = "add_assay.html"
+	# Define method to handle GET request
+	def get(self, *args, **kwargs):
+		# Create an instance of the formset
+		formset = AssayFormSet(queryset=Assay.objects.none())
+		return self.render_to_response({'assay_formset': formset})
+	# Define method to handle POST request
+	def post(self, *args, **kwargs):
+		formset = AssayFormSet(data=self.request.POST)
+		# Check if submitted forms are valid
+		if formset.is_valid():
+			formset.save()
+			return redirect(reverse_lazy("my-created"))
+		return self.render_to_response({'assay_formset': formset})
+
+class LabCreate(CreateView):
+	model = Lab
+	fields = ['name', 'creator', 'days_per_month', 'integrated_hours', 'walkup_hours']
+	#initial = {'date_of_death': '11/06/2020'}
+	def get_success_url(self):
+		return reverse("add_assay")
+
+class LabUpdate(UpdateView):
+    model = Lab
+    fields = '__all__' # Not recommended (potential security issue if more fields added)

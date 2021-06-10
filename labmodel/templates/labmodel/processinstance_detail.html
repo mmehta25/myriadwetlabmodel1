@@ -1,0 +1,22 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+  <h1>Process: {{ processinstance.process.name }} ({{ processinstance.subname }})</h1>
+
+  <h4>Process Assumptions: <a href="">Edit</a></h4>
+  <p><strong>Duration:</strong> {{ processinstance.process.duration }}</p>
+  <p><strong>Sample count:</strong> {{ processinstance.process.sample_count }}</p>
+
+
+  <div style="margin-left:20px;margin-top:20px">
+    <h4>Instruments</h4>
+    
+    {% for instrumentinstance in processinstance.instrumentinstance_set.all %}
+      <hr>
+      <h5>
+        {{ instrumentinstance.instrument.name }} ({{ instrumentinstance.id }}) (<a href="">Edit</a> | <a href="">Delete</a>)
+      </h5>
+    {% endfor %}
+    <a href = "">Add instrument</a>
+  </div>
+{% endblock %}

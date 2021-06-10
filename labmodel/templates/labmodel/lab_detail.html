@@ -1,0 +1,31 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+  <h1>Model Name: {{ lab.name }}</h1>
+
+  <p><strong>Creator:</strong> <a href="">{{ lab.creator }}</a></p>
+  <h4>Lab Assumptions: (<a href="">Edit</a>)</h4>
+  <p><strong>Days per month:</strong> {{ lab.days_per_month }}</p>
+  <p><strong>Integrated Hours:</strong> {{ lab.integrated_hours }}</p>
+  <p><strong>Walkup Hours:</strong> {{ lab.walkup_hours }}</p>
+
+
+  <div style="margin-left:20px;margin-top:20px">
+    <h4>Assays</h4>
+    
+    {% for assay in lab.assay_set.all %}
+      <hr>
+      <h5>
+        {{ assay.name }} (<a href="">Edit</a> | <a href="">Delete</a>)
+      </h5>
+        {% for processinstance in assay.processinstance_set.all %}
+          <hr>
+          <li> <strong>Process {{ forloop.counter }}</strong>: {{processinstance.process.name}}: <a href="{% url 'processinstance-detail' processinstance.id%}">{{ processinstance.subname }}</a></li>
+        {% endfor %}
+
+    {% endfor %}
+  <div style="padding-top: 3vw">
+    <button>Add assay</button>
+  </div>
+  </div>
+{% endblock %}

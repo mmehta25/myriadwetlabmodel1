@@ -68,6 +68,9 @@ class ProcessInstance(models.Model):
 		return reverse('Process-detail', args=[str(self.id)])
 	def __str__(self):
 		return f'{self.subname}'
+		class Meta:
+			verbose_name = "ProcessInstance"
+			verbose_name_plural = "ProcessInstances"
     # instruments = models.ManyToManyField(InstrumentInstance, help_text='Select instrument instances for this process')
 
     # def display_instrumentinst(self):
@@ -89,9 +92,6 @@ class Assay(models.Model):
     # 	return ', '.join(process.name for process in self.processes.all()[:5])
 
     # display_process.short_description = 'Processes'
-    class Meta:
-        verbose_name = "Assay"
-        verbose_name_plural = "Assays"
 
     def get_absolute_url(self):
         """Returns the url to access a particular author instance."""
