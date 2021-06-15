@@ -1,38 +1,39 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends "base_generic.html" %}
+{% block title %}{% endblock %}
+{% block content %}
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Add Assay</title>
+    <title>Add Instrument to Process: </title>
 </head>
 <body>
-    <h1>Add a new assay</h1>
+    <h1>Add a new instrument</h1>
     <form id="form-container" method="POST">
         {% csrf_token %}
-        {{assay_formset.management_form}}
-        {% for form in assay_formset %}
-        <div class="lab-form">
+        {{instrumentinstance_formset.management_form}}
+        {% for form in instrumentinstance_formset %}
+        <div class="instrument-form">
         {{form.as_p}}
         </div>
         {% endfor %}
-        <button id="add-form" type="button">Add Another Assay</button>
-        <button type="submit">Create Assays</button>
+        <button id="add-form" type="button">Add Another Instrument</button>
+        <button type="submit">Create Instruments</button>
     </form>
     
 
     <script>
-        let AssayForm = document.querySelectorAll(".assay-form")
+        let instrumentForm = document.querySelectorAll(".instrument-form")
         let container = document.querySelector("#form-container")
         let addButton = document.querySelector("#add-form")
         let totalForms = document.querySelector("#id_form-TOTAL_FORMS")
 
-        let formNum = labForm.length-1
+        let formNum = instrumentForm.length-1
         addButton.addEventListener('click', addForm)
 
         function addForm(e){
             e.preventDefault()
 
-            let newForm = labForm[0].cloneNode(true)
+            let newForm = instrumentForm[0].cloneNode(true)
             let formRegex = RegExp(`form-(\\d){1}-`,'g')
 
             formNum++
@@ -43,4 +44,4 @@
         }
     </script>
     </body>
-</html>
+{% endblock %}

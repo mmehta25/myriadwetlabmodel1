@@ -1,0 +1,26 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+
+    <h2>Add Assays, Processes, Instruments to: {{ lab_name }}</h2>
+    <div>
+        <ul>
+            {% for assay in object_list %}
+                <li>{{ assay.name }} | <a href="">edit</a></li>
+                <ul>
+                    {% for processinstance in assay.processinstance_set.all %}
+                    <li> {{ processinstance.process.name }}: {{ processinstance.subname }} | <a href="{% url 'instrument-form' lab_id processinstance.pk %}"> add instrument(s)</a></li>
+                    {% empty %}
+                    <li>No processes added.</li>
+                    {% endfor%}
+                </ul>
+            {% empty %}
+                <li>No assays yet.</li>
+            {% endfor %}
+
+        </ul>
+        <p><a href="{% url 'lab-assay-add' lab_id%}"> Add an assay to this lab</a></p>
+        <p><a href="{% url 'my-created' %}"> Finish Lab Model</a></p>
+        
+    </div>
+{% endblock %}

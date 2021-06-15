@@ -4,8 +4,8 @@
   <h1>Process: {{ processinstance.process.name }} ({{ processinstance.subname }})</h1>
 
   <h4>Process Assumptions: <a href="">Edit</a></h4>
-  <p><strong>Duration:</strong> {{ processinstance.process.duration }}</p>
-  <p><strong>Sample count:</strong> {{ processinstance.process.sample_count }}</p>
+  <p><strong>Duration:</strong> {{ processinstance.duration }}</p>
+  <p><strong>Sample count:</strong> {{ processinstance.sample_count }}</p>
 
 
   <div style="margin-left:20px;margin-top:20px">
@@ -17,6 +17,8 @@
         {{ instrumentinstance.instrument.name }} ({{ instrumentinstance.id }}) (<a href="">Edit</a> | <a href="">Delete</a>)
       </h5>
     {% endfor %}
-    <a href = "">Add instrument</a>
+  <div style = "padding-top: 3vw">
+    <button>Add instrument</button>
+  </div>
   </div>
 {% endblock %}

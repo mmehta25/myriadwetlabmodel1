@@ -23,7 +23,7 @@ class InstrumentInstance(models.Model):
 
     #Foreign key used because an instrument instance can only have one instrument, but an instrument can have multiple instances of itself.
     instrument = models.ForeignKey('Instrument', on_delete=models.RESTRICT, null=True)
-    process = models.ForeignKey('Process', on_delete=models.RESTRICT, null=True, default=1)
+    processinstance = models.ForeignKey('ProcessInstance', on_delete=models.RESTRICT, null=True, default=1)
 
     identical_copies = models.CharField(max_length=10)
 
@@ -46,24 +46,26 @@ class InstrumentInstance(models.Model):
 class Process(models.Model):
     """Model representing a Process."""
     name = models.CharField(max_length=25)
-    duration = models.CharField(max_length=10, help_text='Duration in hours')
-    sample_count = models.CharField(max_length=10, help_text='# of samples to process')
 
-    def display_instrumentinst(self):
+    def display_processinstanceinst(self):
     	"""Create a string for the Assay. This is required to display assays in Admin."""
-    	return ', '.join(str(instruments.id) + "(" + instruments.instrument.name + ")" for instruments in self.instruments.all()[:5])
+    	return ', '.join(str(processinstances.subname) for processinstances in self.processinstance_set.all())
 
-    display_instrumentinst.short_description = 'Instrument Instances'
+    display_processinstanceinst.short_description = 'Process Instances'
 
     def __str__(self):
         """String for representing the Model object."""
         return f'{self.name}'
 
 class ProcessInstance(models.Model):
-	id = models.UUIDField(primary_key=True, default=uuid.uuid4, help_text='Unique ID for this particular process instance')
+	#id = models.UUIDField(primary_key=True, default=uuid.uuid4, help_text='Unique ID for this particular process instance')
 	subname = models.CharField(max_length=25)
+
 	process = models.ForeignKey(Process, on_delete=models.RESTRICT, null=True, default=1)
 	assay = models.ForeignKey('Assay', on_delete=models.RESTRICT, null=True, default=1)
+	duration = models.CharField(max_length=10, help_text='Duration in hours')
+	sample_count = models.CharField(max_length=10, help_text='# of samples to process')
+
 	def get_absolute_url(self):
 		return reverse('Process-detail', args=[str(self.id)])
 	def __str__(self):
@@ -104,21 +106,41 @@ class Assay(models.Model):
 class Lab(models.Model):
     """Model representing a lab."""
     name = models.CharField(max_length=25)
-    days_per_month = models.CharField('days_per_month', max_length=2, unique=False,
+
+    days_per_month = models.CharField('Days per month', max_length=2, unique=False,
                              help_text='Enter assumption for working days per month')
-    integrated_hours = models.CharField('integrated_hours', max_length=2, unique=False,
+
+    integrated_hours = models.CharField('Integrated Hours', max_length=2, unique=False,
                              help_text='Enter assumption for integrated hours per day')
-    walkup_hours = models.CharField('walkup_hours', max_length=2, unique=False,
+
+    walkup_hours = models.CharField('Walkup Hours', max_length=2, unique=False,
                              help_text='Enter assumption for walkup hours per day')
-    #assay = models.ManyToManyField(Assay, help_text='Select an assay for this lab')
+
+    max_utilization = models.DecimalField('Max utilization', max_digits=4, decimal_places=2, 
+                            help_text='Enter the instrument maximum utilization in %')
+    offset = models.DecimalField('Offset', max_digits=4, decimal_places=2, 
+                            help_text='Offset is the factor multiplied to duration estimates')
+
+    projection_for_2021 = models.CharField('Projection for 2021', max_length=2, unique=False,
+                             help_text='Enter projected sample count for 2021')
+
+    projection_for_2022 = models.CharField('Projection for 2022', max_length=2, unique=False,
+                             help_text='Enter projected sample count for 2022')
+
+    projection_for_2023 = models.CharField('Projection for 2023', max_length=2, unique=False,
+                             help_text='Enter projected sample count for 2023')
+
+    projection_for_2024 = models.CharField('Projection for 2024', max_length=2, unique=False,
+                             help_text='Enter projected sample count for 2024')
+
+    projection_for_2025 = models.CharField('Projection for 2025', max_length=2, unique=False,
+                             help_text='Enter projected sample count for 2025')
+
+    projection_for_2026 = models.CharField('Projection for 2026', max_length=2, unique=False,
+                             help_text='Enter projected sample count for 2026')
+    
 
     creator = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
-
-    # def display_assay(self):
-    # 	"""Create a string for the Assay. This is required to display assays in Admin."""
-    # 	return ', '.join(assay.name for assay in self.assay.all()[:5])
-
-    # display_assay.short_description = 'Assays'
 
     def get_absolute_url(self):
         """Returns the url to access a particular lab instance."""

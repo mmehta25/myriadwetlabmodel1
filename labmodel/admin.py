@@ -22,12 +22,12 @@ class ProcessInstanceInline(admin.TabularInline):
 
 @admin.register(Process)
 class ProcessAdmin(admin.ModelAdmin):
-    list_display = ('name', 'duration', 'sample_count')
+    list_display = ('name', 'display_processinstanceinst')
     inlines = [ProcessInstanceInline]
 
 @admin.register(ProcessInstance)
 class ProcessInstanceAdmin(admin.ModelAdmin):
-    list_display = ('id', 'subname')
+    list_display = ('id', 'subname', 'duration', 'sample_count')
 
 class InstrumentsInstanceInline(admin.TabularInline):
 	extra = 0

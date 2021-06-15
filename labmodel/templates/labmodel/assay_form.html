@@ -1,12 +1,54 @@
 {% extends "base_generic.html" %}
+{% load static %}
 
+{% block title %}{% endblock %}
 {% block content %}
-  <form action="" method="post">
-    {% csrf_token %}
-    <table>
-    	<h5>Assay Details</h5>
-    {{ form.as_table }}
-    </table>
-    <input type="submit" value="Next: Add Processes">
-  </form>
+    <h2>Assay</h2>
+    <hr>
+    <div class="col-md-4">
+        <form action="" method="post">{% csrf_token %}
+            {{ form.as_p }}
+            <h3>Add process to assay</h3>
+            <table class="table">
+                {{ processinstances.management_form }}
+
+                {% for form in processinstances.forms %}
+                    {% if forloop.first %}
+                        <thead>
+                        <tr>
+                            {% for field in form.visible_fields %}
+                                <th>{{ field.label|capfirst }}</th>
+                            {% endfor %}
+                        </tr>
+                        </thead>
+                    {% endif %}
+                    <tr class="{% cycle row1 row2 %} formset_row">
+                        {% for field in form.visible_fields %}
+                            <td>
+                                {# Include the hidden fields in the form #}
+                                {% if forloop.first %}
+                                    {% for hidden in form.hidden_fields %}
+                                        {{ hidden }}
+                                    {% endfor %}
+                                {% endif %}
+                                {{ field.errors.as_ul }}
+                                {{ field }}
+                            </td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+            </table>
+            <input type="submit" value="Save"/> <a href="">back to the list</a>
+        </form>
+    </div>
+    <script src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.formset/1.2.2/jquery.formset.js" integrity="sha512-Tsdobfrx6IMRPi8d5z3AtjWNSbZxGm58IZFnblaRaepw562ZITlRhUM2Zu87vbvZjQxGmmto+31zEBLZ4wjs+w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script type="text/javascript">
+        $('.formset_row').formset({
+            addText: 'add process instance',
+            deleteText: 'remove',
+            prefix: 'processinstance_set'
+        });
+    </script>
 {% endblock %}
+

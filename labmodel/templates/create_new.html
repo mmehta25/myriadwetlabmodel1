@@ -1,10 +1,47 @@
 {% extends "base_generic.html" %}
-
+{% load static %}
+  <link rel="stylesheet" href="{% static 'css/styles.css' %}">
 {% block content %}
   <h2>Create New Lab Model</h2>
-  <ul>
+  <ul style = "list-style: none">
     <li><a href="{% url 'lab-create' %}"><strong>From Scratch</strong></a></li>
-    <li><a href="{% url 'lab-update' 1 %}"><strong>From Template</strong></a></li>
-    <li><a href='{% url "add_assay" %}'>Add Assay</a></li>
+    <li><a href=""><strong>From Template</strong></a></li>
   </ul>
+  <div class="row">
+  <div class="col-sm">
+  	<h4>Existing Process Classes</h4>
+  	{% if process_list %}
+    <ul>
+
+      {% for process in process_list %}
+      <li>
+        {{ process.name }}
+      </li>
+      {% endfor %}
+    </ul>
+
+    {% else %}
+      <p>There are no processes yet.</p>
+    {% endif %}
+    <a href=""><strong>Add new Process Class</strong></a>
+  </div>
+  <div class="col-sm">
+  	 <h4>Existing Instrument Classes</h4>
+  	{% if instrument_list %}
+    <ul>
+
+      {% for instrument in instrument_list %}
+      <li>
+        {{ instrument.name }}
+      </li>
+      {% endfor %}
+    </ul>
+
+    {% else %}
+      <p>There are no instruments yet.</p>
+    {% endif %}
+    <a href=""><strong>Add new Instrument Class</strong></a>
+  </div>
+  </div>
+  
 {% endblock %}
