@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Lab, Assay, Process, ProcessInstance, Instrument, InstrumentInstance
+from .models import Lab, Assay, Process, ProcessInstance, Instrument, InstrumentInstance, LabAnalysis
 # Register your models here.
 
 # admin.site.register(Lab)
@@ -25,6 +25,10 @@ class ProcessAdmin(admin.ModelAdmin):
     list_display = ('name', 'display_processinstanceinst')
     inlines = [ProcessInstanceInline]
 
+@admin.register(LabAnalysis)
+class LabAnalysisAdmin(admin.ModelAdmin):
+    list_display = ('lab', )
+
 @admin.register(ProcessInstance)
 class ProcessInstanceAdmin(admin.ModelAdmin):
     list_display = ('id', 'subname', 'duration', 'sample_count')
@@ -35,12 +39,12 @@ class InstrumentsInstanceInline(admin.TabularInline):
 
 @admin.register(Instrument)
 class InstrumentAdmin(admin.ModelAdmin):
-    list_display = ('name', 'samples_per_day')
+    list_display = ('name', )
     inlines = [InstrumentsInstanceInline]
 
 @admin.register(InstrumentInstance)
 class InstrumentInstanceAdmin(admin.ModelAdmin):
-    list_display = ('instrument', 'integrated_or_walkup', 'identical_copies')
+    list_display = ('instrument', 'samples_per_day', 'integrated_or_walkup', 'identical_copies')
     fieldsets = (
         (None, {
             'fields': ('instrument', 'id')

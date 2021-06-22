@@ -1,6 +1,6 @@
 from django.shortcuts import get_object_or_404, render
 from django.http import HttpResponse, HttpResponseRedirect
-from .models import Lab, Assay, Process, ProcessInstance, Instrument, InstrumentInstance
+from .models import Lab, Assay, Process, ProcessInstance, Instrument, InstrumentInstance, LabAnalysis
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views import generic
 from django.views.generic.edit import CreateView, UpdateView
@@ -13,6 +13,10 @@ from django.shortcuts import redirect
 from django.db import transaction
 from django.contrib.auth.models import User
 from django import forms
+import pandas as pd
+import plotly.express as px
+from plotly.offline import plot
+from labmodel.forms import EditInstrumentForm, OffsetSliderForm
 
 # Create your views here.
 def index(request):
@@ -45,12 +49,125 @@ def processinstrumentlist(request):
     'instrument_list': Instrument.objects.all()
     }
     return render(request, 'create_new.html', context=context)
+def templatelist(request):
+    context = {
+
+    }
+    return render(request, 'template_list.html', context=context)
 
 class LabDetailView(generic.DetailView):
     model = Lab
 
 class ProcessInstanceDetailView(generic.DetailView):
     model = ProcessInstance
+
+def labanalysislabview(request, pk):
+    obj = LabAnalysis(lab=get_object_or_404(Lab, pk=pk))
+    obj.save()
+
+    util_dict_samples = {}
+    util_dict_hours = {}
+    years = [2021, 2022, 2023, 2024, 2025, 2026]
+    instrument_set = set()
+    for assay in obj.lab.assay_set.all():
+        for processinstance in assay.processinstance_set.all():
+            for instrumentinstance in processinstance.instrumentinstance_set.all():
+                instrument_set.add(instrumentinstance.instrument)
+
+    for yr in years:
+        for instrument in instrument_set:
+            bysamples = obj.instrument_utilization_samples(instrument, yr)
+            byhours = obj.instrument_utilization_hours(instrument, yr)
+
+            if bysamples > 1:
+                bysamples = 1
+
+            if byhours > 1:
+                byhours = 1
+
+            if instrument in util_dict_samples:
+                util_dict_samples[instrument].append(bysamples)
+            else:
+                util_dict_samples[instrument] = [bysamples]
+
+            if instrument in util_dict_hours:
+                util_dict_hours[instrument].append(byhours)
+            else:
+                util_dict_hours[instrument] = [byhours]
+    names = []
+    for instrument in instrument_set:
+        names.append(instrument.name)
+
+    max_util = obj.lab.max_utilization / 100
+
+    df_samples = pd.DataFrame.from_dict(util_dict_samples, orient='index', columns=years)
+    df_hours = pd.DataFrame.from_dict(util_dict_hours, orient='index', columns=years)
+    
+    data_samples = df_samples.values
+    data_hours = df_hours.values
+
+    fig_samples = px.imshow(data_samples,
+        labels=dict(x="Year", y="Instrument", color="Utilization"),
+                x=years,
+                y=names, 
+                range_color=[0,1],
+                color_continuous_scale=[(0.00, "rgb(51, 51, 204)"),   (0.10, "rgb(51, 51, 204)"),
+                                        (0.10, "rgb(102, 0, 255)"),   (0.20, "rgb(102, 0, 255)"),
+                                        (0.20, "rgb(153, 51, 255)"),   (0.30, "rgb(153, 51, 255)"),
+                                        (0.30, "rgb(204, 0, 255)"),   (0.40, "rgb(204, 0, 255)"),
+                                        (0.40, "rgb(204, 0, 204)"),   (0.50, "rgb(204, 0, 204)"),
+                                        (0.50, "rgb(204, 0, 102)"),   (0.60, "rgb(204, 0, 102)"),
+                                        (0.60, "rgb(255, 80, 80)"), (max_util, "rgb(255, 80, 80)"),
+                                        (max_util, "rgb(204, 0, 0)"),  (1.00, "rgb(204, 0, 0)")]
+               )
+    fig_samples.update_xaxes(side="top")
+    plot_div_samples = plot(fig_samples, output_type='div')
+    for y in years:
+        df_samples[y] = pd.Series(["{0:.2f}%".format(val * 100) for val in df_samples[y]], index = df_samples.index)
+    df_htmldiv_samples = df_samples.to_html(classes=["table", "table-hover"])
+
+    fig_hours = px.imshow(data_hours,
+        labels=dict(x="Year", y="Instrument", color="Utilization"),
+                x=years,
+                y=names, 
+                range_color=[0,1],
+                color_continuous_scale=[(0.00, "rgb(51, 51, 204)"),   (0.10, "rgb(51, 51, 204)"),
+                                        (0.10, "rgb(102, 0, 255)"),   (0.20, "rgb(102, 0, 255)"),
+                                        (0.20, "rgb(153, 51, 255)"),   (0.30, "rgb(153, 51, 255)"),
+                                        (0.30, "rgb(204, 0, 255)"),   (0.40, "rgb(204, 0, 255)"),
+                                        (0.40, "rgb(204, 0, 204)"),   (0.50, "rgb(204, 0, 204)"),
+                                        (0.50, "rgb(204, 0, 102)"),   (0.60, "rgb(204, 0, 102)"),
+                                        (0.60, "rgb(255, 80, 80)"), (max_util, "rgb(255, 80, 80)"),
+                                        (max_util, "rgb(204, 0, 0)"),  (1.00, "rgb(204, 0, 0)")]
+               )
+    fig_hours.update_xaxes(side="top")
+    plot_div_hours = plot(fig_hours, output_type='div')
+    for y in years:
+        df_hours[y] = pd.Series(["{0:.2f}%".format(val * 100) for val in df_hours[y]], index = df_hours.index)
+    df_htmldiv_hours = df_hours.to_html(classes=["table", "table-hover"])
+
+    lab = get_object_or_404(Lab, pk=pk)
+    if request.method == 'POST':
+        form = OffsetSliderForm(request.POST)
+        if form.is_valid():
+            lab.offset = form.cleaned_data['offset']
+            lab.save()
+            return HttpResponseRedirect(reverse('lab-analysis', args=(pk, )) )
+    else:
+        form = OffsetSliderForm()
+
+    context = {
+    'lab_analysis': obj,
+    'offsetslider_form': form,
+    'lab': obj.lab,
+    'lab_id': obj.lab.pk,
+    'plot_div_samples': plot_div_samples,
+    'df_samples': df_htmldiv_samples,
+    'plot_div_hours': plot_div_hours,
+    'df_hours': df_htmldiv_hours
+    }
+    return render(request, 'labmodel/lab_analysis.html', context=context)
+
 
 # Forms ##########################################################
 class AssayList(LoginRequiredMixin, ListView):
@@ -68,18 +185,13 @@ class AssayList(LoginRequiredMixin, ListView):
 
 class AssayCreate(CreateView):
     model = Assay
-    fields = ['name', 'lab']
-
-# class ProcessCreate(CreateView):
-#     model = Process
-#     fields = ['name', ]
-# class InstrumentCreate(CreateView):
-#     model = Instrument
-#     fields = ['name', ]
+    fields = ['name', 'lab', 'projection_for_2021', 'projection_for_2022', 'projection_for_2023', 'projection_for_2024', 
+    'projection_for_2025', 'projection_for_2026']
 
 class AssayProcessInstanceCreate(CreateView):
     model = Assay
-    fields = ['name', 'lab']
+    fields = ['name', 'lab', 'projection_for_2021', 'projection_for_2022', 'projection_for_2023', 'projection_for_2024', 
+    'projection_for_2025', 'projection_for_2026']
 
     def get_initial(self):
         lab = get_object_or_404(Lab, pk=self.kwargs['pk'])
@@ -110,9 +222,7 @@ class AssayProcessInstanceCreate(CreateView):
 
 class LabCreate(CreateView):
     model = Lab
-    fields = ['name', 'creator', 'days_per_month', 'offset', 'integrated_hours', 'walkup_hours', 'max_utilization', 
-    'projection_for_2021', 'projection_for_2022', 'projection_for_2023', 'projection_for_2024', 
-    'projection_for_2025', 'projection_for_2026']
+    fields = ['name', 'creator', 'days_per_month', 'offset', 'integrated_hours', 'walkup_hours', 'max_utilization']
 
     def get_initial(self):
         user = get_object_or_404(User, username=self.request.user.username)
@@ -126,6 +236,19 @@ class LabCreate(CreateView):
 
     def get_success_url(self, lab_id):
         return reverse("lab-assay-add", args=(lab_id,))
+
+class InstrumentCreate(CreateView):
+    model = Instrument
+    fields = ['name', ]
+
+    def get_success_url(self):
+        return reverse("create-new")
+class ProcessCreate(CreateView):
+    model = Process
+    fields = ['name', ]
+
+    def get_success_url(self):
+        return reverse("create-new")
 
 class InstrumentInstanceAddView(TemplateView):
     template_name = "labmodel/instrumentinstance_form.html"
@@ -149,3 +272,32 @@ class InstrumentInstanceAddView(TemplateView):
 class LabUpdate(UpdateView):
     model = Lab
     fields = '__all__' # Not recommended (potential security issue if more fields added)
+
+def edit_instrument(request, lab_id, pk):
+    instrument_instance = get_object_or_404(InstrumentInstance, pk=pk)
+
+    # If this is a POST request then process the Form data
+    if request.method == 'POST':
+
+        # Create a form instance and populate it with data from the request (binding):
+        form = EditInstrumentForm(request.POST)
+
+        # Check if the form is valid:
+        if form.is_valid():
+            # process the data in form.cleaned_data as required (here we just write it to the model due_back field)
+            instrument_instance.identical_copies= form.cleaned_data['identical_copies']
+            instrument_instance.save()
+
+            # redirect to a new URL:
+            return HttpResponseRedirect(reverse('lab-analysis', args=(lab_id, )) )
+
+    # If this is a GET (or any other method) create the default form.
+    else:
+        form = EditInstrumentForm()
+
+    context = {
+        'form': form,
+        'instrument_instance': instrument_instance,
+    }
+
+    return render(request, 'labmodel/edit_instrument.html', context)

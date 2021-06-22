@@ -1,0 +1,92 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+<h1>Calculations for Lab: {{ lab_analysis.lab.name }}</h1>
+<h3>Assumptions: </h3>
+<div class="row">
+  <div class="col-sm">
+    <h5>Lab Level Assumptions:</h5>
+      <ul>
+        <li>Offset: {{ lab.offset }}
+          <a data-toggle="collapse" href="#collapseExample" role="button" aria-expanded="false" aria-controls="collapseExample">
+            edit
+          </a></li>
+        <div class="collapse" id="collapseExample">
+          <div class="card card-body">
+            <form action="" method="post">
+            {% csrf_token %}
+            <table>
+            {{ offsetslider_form.as_table }}
+            </table>
+            <p>new value: <span id="demo"></span></p>
+            <input type="submit" value="Submit">
+            </form>
+              <script>
+              var slider = document.getElementById("mySlider");
+              var output = document.getElementById("demo");
+              output.innerHTML = slider.value;
+
+              slider.oninput = function() {
+                output.innerHTML = this.value;
+              }
+              </script>         
+          </div>
+        </div>
+        
+        <li>Max Utilization: {{ lab.max_utilization }}%</li>
+        <li>Integrated Hours: {{ lab.integrated_hours }}</li>
+        <li>Walkup Hours: {{ lab.walkup_hours }}</li>
+        <li>Days per month: {{ lab.days_per_month }}</li> 
+      </ul>
+    <h5>Sample Projections:</h5>
+        {% for assay in lab.assay_set.all %}
+      <ul>
+          <h6><strong>{{ assay.name }}: </strong> </h6>
+          <li>2021 Projection: {{ assay.projection_for_2021 }} samples</li>
+          <li>2022 Projection: {{ assay.projection_for_2022 }} samples</li>
+          <li>2023 Projection: {{ assay.projection_for_2023 }} samples</li>
+          <li>2024 Projection: {{ assay.projection_for_2024 }} samples</li>
+          <li>2025 Projection: {{ assay.projection_for_2025 }} samples</li>
+          <li>2026 Projection: {{ assay.projection_for_2026 }} samples</li>
+      </ul>
+      {% endfor %}
+  </div>
+  <div class="col-sm">
+    <h5>Assay Processes/Instruments: </h5>
+    <ul>
+      {% for assay in lab.assay_set.all %}
+          <li>{{ assay.name }} </li>
+          <ul>
+              {% for processinstance in assay.processinstance_set.all %}
+                <li> {{ processinstance.process.name }}: {{ processinstance.subname }}</li>
+                
+                <ul>
+                  {% for instrumentinstance in processinstance.instrumentinstance_set.all %}
+                  <li> ({{ instrumentinstance.integrated_or_walkup }}) {{ instrumentinstance.instrument.name }}: {{ instrumentinstance.identical_copies }}| 
+                    <a href=" {% url 'edit-instrument' lab_id instrumentinstance.id %}">edit</a></li>
+                  {% endfor%}
+                </ul>
+                
+              {% endfor%}
+          </ul>
+      {% endfor %}
+  </div>
+</div>
+  <body>
+  <h3>Instrument utilization (Samples)</h3>
+  {% autoescape off %}
+  {{ df_samples }}
+  {% endautoescape %}
+  {% autoescape off %}
+  {{ plot_div_samples }}
+  {% endautoescape %}
+
+  <h3>Instrument utilization (Hours)</h3>
+  {% autoescape off %}
+  {{ df_hours }}
+  {% endautoescape %}
+  {% autoescape off %}
+  {{ plot_div_hours }}
+  {% endautoescape %}
+</body>
+{% endblock %}

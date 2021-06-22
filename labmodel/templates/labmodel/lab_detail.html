@@ -2,14 +2,28 @@
 
 {% block content %}
   <h1>Model Name: {{ lab.name }}</h1>
-
   <p><strong>Creator:</strong> <a href="">{{ lab.creator }}</a></p>
-  <h4>Lab Assumptions: (<a href="">Edit</a>)</h4>
-  <p><strong>Days per month:</strong> {{ lab.days_per_month }}</p>
-  <p><strong>Integrated Hours:</strong> {{ lab.integrated_hours }}</p>
-  <p><strong>Walkup Hours:</strong> {{ lab.walkup_hours }}</p>
-
-
+<h3>Lab Assumptions <a href="">edit</a> </h3>
+  <ul>
+    <h5>General Assumptions:</h5>
+    <li>Offset: {{ lab.offset }}</li>
+    <li>Max Utilization: {{ lab.max_utilization }}%</li>
+    <h5>Time Assumptions:</h5>
+    <li>Integrated Hours: {{ lab.integrated_hours }}</li>
+    <li>Walkup Hours: {{ lab.walkup_hours }}</li>
+    <li>Days per month: {{ lab.days_per_month }}</li>
+  </ul>
+  {% for assay in lab.assay_set.all %}
+  <ul>
+      <h6><strong>{{ assay.name }}:</strong></h6>
+      <li>2021 Projection: {{ assay.projection_for_2021 }} samples</li>
+      <li>2022 Projection: {{ assay.projection_for_2022 }} samples</li>
+      <li>2023 Projection: {{ assay.projection_for_2023 }} samples</li>
+      <li>2024 Projection: {{ assay.projection_for_2024 }} samples</li>
+      <li>2025 Projection: {{ assay.projection_for_2025 }} samples</li>
+      <li>2026 Projection: {{ assay.projection_for_2026 }} samples</li>
+  </ul>
+  {% endfor %}
   <div style="margin-left:20px;margin-top:20px">
     <h4>Assays</h4>
     

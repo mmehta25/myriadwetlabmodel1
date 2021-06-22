@@ -5,7 +5,7 @@
   <h2>Create New Lab Model</h2>
   <ul style = "list-style: none">
     <li><a href="{% url 'lab-create' %}"><strong>From Scratch</strong></a></li>
-    <li><a href=""><strong>From Template</strong></a></li>
+    <li><a href="{% url 'template-list' %}"><strong>From Template</strong></a></li>
   </ul>
   <div class="row">
   <div class="col-sm">
@@ -23,7 +23,7 @@
     {% else %}
       <p>There are no processes yet.</p>
     {% endif %}
-    <a href=""><strong>Add new Process Class</strong></a>
+    <a href="{% url 'process-add' %}"><strong>Add new Process Class</strong></a>
   </div>
   <div class="col-sm">
   	 <h4>Existing Instrument Classes</h4>
@@ -40,7 +40,7 @@
     {% else %}
       <p>There are no instruments yet.</p>
     {% endif %}
-    <a href=""><strong>Add new Instrument Class</strong></a>
+    <a href="{% url 'instrument-add' %}"><strong>Add new Instrument Class</strong></a>
   </div>
   </div>
   
