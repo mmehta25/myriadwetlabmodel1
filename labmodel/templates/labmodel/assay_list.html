@@ -6,10 +6,13 @@
     <div>
         <ul>
             {% for assay in object_list %}
-                <li>{{ assay.name }} | <a href="">edit</a></li>
+                <li><strong>Assay Name:</strong> {{ assay.name }} | <a href="">edit</a></li>
                 <ul>
                     {% for processinstance in assay.processinstance_set.all %}
-                    <li> {{ processinstance.process.name }}: {{ processinstance.subname }} | <a href="{% url 'instrument-form' lab_id processinstance.pk %}"> add instrument(s)</a></li>
+                        <li> <strong>Process/Subprocess:</strong> {{ processinstance.process.name }}: {{ processinstance.subname }}</li>
+                            <ul>
+                                <li> <strong>Instrument:</strong> {{ processinstance.instrument.name }} </li>
+                            </ul>
                     {% empty %}
                     <li>No processes added.</li>
                     {% endfor%}
@@ -17,9 +20,25 @@
             {% empty %}
                 <li>No assays yet.</li>
             {% endfor %}
+         </ul>
+    <p><a href="{% url 'lab-assay-add' lab_id%}"> Add an assay to this lab</a></p>
+    <h5>Add Instrument Instances for each Instrument Type:</h5>
+        <ol>
+            {% for assay in object_list %}
+                {% for processinstance in assay.processinstance_set.all %}
+                    <li>{{ processinstance.instrument.name }}: </li>
+                    <ul>
+                        {% for instrumentinstance in processinstance.instrument.instrumentinstance_set.all %}
+                            <li> {{ instrumentinstance.identical_copies }} Copies | ({{ instrumentinstance.integrated_or_walkup }}) </li>
+                        {% empty %}
+                            <p>No instrument instances added.</p>
+                        {% endfor %}
+                    </ul>
+                    <a href="{% url 'instrument-form' lab_id processinstance.instrument.id %}"> add instrument instance(s)</a>
+                {% endfor %}
+            {% endfor%}
+        </ol>
 
-        </ul>
-        <p><a href="{% url 'lab-assay-add' lab_id%}"> Add an assay to this lab</a></p>
         <p><a href="{% url 'my-created' %}"> Finish Lab Model</a></p>
         
     </div>

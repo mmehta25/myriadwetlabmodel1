@@ -3,6 +3,7 @@
 {% block content %}
 <h3>Lab Model Templates </h3>
 <div id="accordion">
+{% for template_lab in lab_template_list %}
   <div class="card">
     <div class="card-header" id="headingOne">
       <h5 class="mb-0">
@@ -16,248 +17,58 @@
       <div class="card-body">
         <h5>Lab Details:</h5>
         <ul>
-          <li>Offset: 1.4</li>
-          <li>Max Utilization: 80%</li>
-          <li>Integrated Hours: 12</li>
-          <li>Walkup Hours: 22</li>
-          <li>Days per month: 25</li>
-          <li>% of samples ordering FX: 60%</li>
-          <li>FX Samples per batch: 60%</li>
+          <li>Offset: {{template_lab.offset}}</li>
+          <li>Max Utilization: {{template_lab.max_utilization}}</li>
+          <li>Integrated Hours: {{template_lab.integrated_hourst}}</li>
+          <li>Walkup Hours: {{template_lab.walkup_hours}}</li>
+          <li>Days per month: {{template_lab.days_per_month}}</li>
+          <li>% of samples ordering FX: n/a</li>
+          <li>FX Samples per batch: n/a</li>
         </ul>
           <h6>Assays:</h6>
           <div class='row'>
-            <div class='col-sm'>
-              <ul>
-                <strong>Prequel:</strong>
-                <li>Samples per batch: 93</li>
-                <li>Samples per flowcell: 115</li>
-                <li>2021 Projection: 154,922</li> 
-                <li>2022 Projection: 187,335</li> 
-                <li>2023 Projection: 216,216</li> 
-                <li>2024 Projection: 262,463</li> 
-                <li>2025 Projection: 288,648</li> 
-                <li>2026 Projection: 317,370</li>
-              </ul>
-            </div>
-            <div class='col-sm'>
-              <ul>
-                <strong>Foresight:</strong>
-                <li>Samples per batch: 90</li>
-                <li>2021 Projection: 154,922</li> 
-                <li>2022 Projection: 187,335</li> 
-                <li>2023 Projection: 216,216</li> 
-                <li>2024 Projection: 262,463</li> 
-                <li>2025 Projection: 288,648</li> 
-                <li>2026 Projection: 317,370</li>  
-              </ul>
-            </div>
+            {% for assay in template_lab.assay_set.all %}
+              <div class='col-sm'>
+                <ul>
+                  <strong>{{assay.name}}:</strong>
+                  <li>Samples per batch: {{assay.samples_per_batch}}</li>
+                  <li>Samples per flowcell: n/a</li>
+                  <li>1 Year Projection: {{assay.projection_for_year_1}}</li> 
+                  <li>2 Year Projection: {{assay.projection_for_year_2}}</li> 
+                  <li>3 Year Projection: {{assay.projection_for_year_3}}</li> 
+                  <li>4 Year Projection: {{assay.projection_for_year_4}}</li> 
+                  <li>5 Year Projection: {{assay.projection_for_year_5}}</li> 
+                  <li>6 Year Projection: {{assay.projection_for_year_6}}</li>
+                </ul>
+              </div>
+            {% endfor %}
           </div>
           <h6>Process/Instrument Details:</h6>
           <div class='row'>
-            <div class='col-sm'>
-              <ul>
-                <strong>Prequel: </strong>
-                <li>Process 1: Ex1, Ex2, Ex3</li>
-                <li>Process 2: Ex1, Ex2, Ex3</li>
-                <li>Process 3: Ex1, Ex2, Ex3</li> 
-                <li>Process 4: Ex1, Ex2, Ex3</li> 
-                <li>Process 5: Ex1, Ex2, Ex3</li> 
-                <li>Process 6: Ex1, Ex2, Ex3</li> 
-                <li>Process 7: Ex1, Ex2, Ex3</li> 
-                <li>Process 8: Ex1, Ex2, Ex3</li>
-                <li>Process 9: Ex1, Ex2, Ex3</li>
-                <li>Process 10: Ex1, Ex2, Ex3</li>
-              </ul>
-            </div>
-            <div class='col-sm'>
-              <ul>
-                <strong>Foresight: </strong>
-                <li>Process 1: Ex1, Ex2, Ex3</li>
-                <li>Process 2: Ex1, Ex2, Ex3</li>
-                <li>Process 3: Ex1, Ex2, Ex3</li> 
-                <li>Process 4: Ex1, Ex2, Ex3</li> 
-                <li>Process 5: Ex1, Ex2, Ex3</li> 
-                <li>Process 6: Ex1, Ex2, Ex3</li> 
-                <li>Process 7: Ex1, Ex2, Ex3</li> 
-                <li>Process 8: Ex1, Ex2, Ex3</li>
-                <li>Process 9: Ex1, Ex2, Ex3</li>
-                <li>Process 10: Ex1, Ex2, Ex3</li> 
-              </ul>
-            </div>        
-      </div>
-      <a href="template-update">Select Template #1</a>
-    </div>
+            {% for assay in template_lab.assay_set.all %}
+              <div class='col-sm'>
+                <strong>{{assay.name}}: </strong>
+                <ul>
+                  {% for processinstance in assay.processinstance_set.all %}
+                    <li>{{processinstance.process.name}}: {{processinstance.subname}} | {{processinstance.instrument.name}}</li>
+                    <ul>
+                      {% for instrumentinstance in processinstance.instrument.instrumentinstance_set.all %}
+                          <li>{{instrumentinstance.identical_copies}} {{instrumentinstance.integrated_or_walkup}} copies of {{instrumentinstance.instrument.name}}</li>
+                      {% endfor %}
+                    </ul>
+                  {% endfor %}
+                </ul>
+              </div>
+            {% endfor %}
 
-  </div>
-  <div class="card">
-    <div class="card-header" id="headingTwo">
-      <h5 class="mb-0">
-        <button class="btn btn-link collapsed" data-toggle="collapse" data-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
-          Template #2
-        </button>
-      </h5>
-    </div>
-    <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#accordion">
-<div class="card-body">
-        <h5>Lab Details:</h5>
-        <ul>
-          <li>Offset: 1.4</li>
-          <li>Max Utilization: 80%</li>
-          <li>Integrated Hours: 12</li>
-          <li>Walkup Hours: 22</li>
-          <li>Days per month: 25</li>
-          <li>% of samples ordering FX: 60%</li>
-          <li>FX Samples per batch: 60%</li>
-        </ul>
-          <h6>Assays:</h6>
-          <div class='row'>
-            <div class='col-sm'>
-              <ul>
-                <strong>Prequel:</strong>
-                <li>Samples per batch: 93</li>
-                <li>Samples per flowcell: 115</li>
-                <li>2021 Projection: 154,922</li> 
-                <li>2022 Projection: 187,335</li> 
-                <li>2023 Projection: 216,216</li> 
-                <li>2024 Projection: 262,463</li> 
-                <li>2025 Projection: 288,648</li> 
-                <li>2026 Projection: 317,370</li>
-              </ul>
-            </div>
-            <div class='col-sm'>
-              <ul>
-                <strong>Foresight:</strong>
-                <li>Samples per batch: 90</li>
-                <li>2021 Projection: 154,922</li> 
-                <li>2022 Projection: 187,335</li> 
-                <li>2023 Projection: 216,216</li> 
-                <li>2024 Projection: 262,463</li> 
-                <li>2025 Projection: 288,648</li> 
-                <li>2026 Projection: 317,370</li>  
-              </ul>
-            </div>
-          </div>
-          <h6>Process/Instrument Details:</h6>
-          <div class='row'>
-            <div class='col-sm'>
-              <ul>
-                <strong>Prequel: </strong>
-                <li>Process 1: Ex1, Ex2, Ex3</li>
-                <li>Process 2: Ex1, Ex2, Ex3</li>
-                <li>Process 3: Ex1, Ex2, Ex3</li> 
-                <li>Process 4: Ex1, Ex2, Ex3</li> 
-                <li>Process 5: Ex1, Ex2, Ex3</li> 
-                <li>Process 6: Ex1, Ex2, Ex3</li> 
-                <li>Process 7: Ex1, Ex2, Ex3</li> 
-                <li>Process 8: Ex1, Ex2, Ex3</li>
-                <li>Process 9: Ex1, Ex2, Ex3</li>
-                <li>Process 10: Ex1, Ex2, Ex3</li>
-              </ul>
-            </div>
-            <div class='col-sm'>
-              <ul>
-                <strong>Foresight: </strong>
-                <li>Process 1: Ex1, Ex2, Ex3</li>
-                <li>Process 2: Ex1, Ex2, Ex3</li>
-                <li>Process 3: Ex1, Ex2, Ex3</li> 
-                <li>Process 4: Ex1, Ex2, Ex3</li> 
-                <li>Process 5: Ex1, Ex2, Ex3</li> 
-                <li>Process 6: Ex1, Ex2, Ex3</li> 
-                <li>Process 7: Ex1, Ex2, Ex3</li> 
-                <li>Process 8: Ex1, Ex2, Ex3</li>
-                <li>Process 9: Ex1, Ex2, Ex3</li>
-                <li>Process 10: Ex1, Ex2, Ex3</li> 
-              </ul>
-            </div>        
       </div>
-      <a href="template-update">Select Template #2</a>
-    </div>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-header" id="headingThree">
-      <h5 class="mb-0">
-        <button class="btn btn-link collapsed" data-toggle="collapse" data-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
-          Template #3
-        </button>
-      </h5>
-    </div>
-    <div id="collapseThree" class="collapse" aria-labelledby="headingThree" data-parent="#accordion">
-<div class="card-body">
-        <h5>Lab Details:</h5>
-        <ul>
-          <li>Offset: 1.4</li>
-          <li>Max Utilization: 80%</li>
-          <li>Integrated Hours: 12</li>
-          <li>Walkup Hours: 22</li>
-          <li>Days per month: 25</li>
-          <li>% of samples ordering FX: 60%</li>
-          <li>FX Samples per batch: 60%</li>
-        </ul>
-          <h6>Assays:</h6>
-          <div class='row'>
-            <div class='col-sm'>
-              <ul>
-                <strong>Prequel:</strong>
-                <li>Samples per batch: 93</li>
-                <li>Samples per flowcell: 115</li>
-                <li>2021 Projection: 154,922</li> 
-                <li>2022 Projection: 187,335</li> 
-                <li>2023 Projection: 216,216</li> 
-                <li>2024 Projection: 262,463</li> 
-                <li>2025 Projection: 288,648</li> 
-                <li>2026 Projection: 317,370</li>
-              </ul>
-            </div>
-            <div class='col-sm'>
-              <ul>
-                <strong>Foresight:</strong>
-                <li>Samples per batch: 90</li>
-                <li>2021 Projection: 154,922</li> 
-                <li>2022 Projection: 187,335</li> 
-                <li>2023 Projection: 216,216</li> 
-                <li>2024 Projection: 262,463</li> 
-                <li>2025 Projection: 288,648</li> 
-                <li>2026 Projection: 317,370</li>  
-              </ul>
-            </div>
-          </div>
-          <h6>Process/Instrument Details:</h6>
-          <div class='row'>
-            <div class='col-sm'>
-              <ul>
-                <strong>Prequel: </strong>
-                <li>Process 1: Ex1, Ex2, Ex3</li>
-                <li>Process 2: Ex1, Ex2, Ex3</li>
-                <li>Process 3: Ex1, Ex2, Ex3</li> 
-                <li>Process 4: Ex1, Ex2, Ex3</li> 
-                <li>Process 5: Ex1, Ex2, Ex3</li> 
-                <li>Process 6: Ex1, Ex2, Ex3</li> 
-                <li>Process 7: Ex1, Ex2, Ex3</li> 
-                <li>Process 8: Ex1, Ex2, Ex3</li>
-                <li>Process 9: Ex1, Ex2, Ex3</li>
-                <li>Process 10: Ex1, Ex2, Ex3</li>
-              </ul>
-            </div>
-            <div class='col-sm'>
-              <ul>
-                <strong>Foresight: </strong>
-                <li>Process 1: Ex1, Ex2, Ex3</li>
-                <li>Process 2: Ex1, Ex2, Ex3</li>
-                <li>Process 3: Ex1, Ex2, Ex3</li> 
-                <li>Process 4: Ex1, Ex2, Ex3</li> 
-                <li>Process 5: Ex1, Ex2, Ex3</li> 
-                <li>Process 6: Ex1, Ex2, Ex3</li> 
-                <li>Process 7: Ex1, Ex2, Ex3</li> 
-                <li>Process 8: Ex1, Ex2, Ex3</li>
-                <li>Process 9: Ex1, Ex2, Ex3</li>
-                <li>Process 10: Ex1, Ex2, Ex3</li> 
-              </ul>
-            </div>        
-      </div>
-      <a href="template-update">Select Template #3</a>
-    </div>
+      <form action="{% url 'make-clone' pk=template_lab.pk %}" method=POST>
+      {% csrf_token %}
+      <button id="clone-btn" type="submit" name='make_clone'>Clone {{ template_lab.name }}</button>
+      </form>
     </div>
   </div>
+</div>
+  {% endfor %}
 </div>
 {% endblock %}

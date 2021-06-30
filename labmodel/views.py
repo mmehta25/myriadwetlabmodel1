@@ -2,13 +2,14 @@ from django.shortcuts import get_object_or_404, render
 from django.http import HttpResponse, HttpResponseRedirect
 from .models import Lab, Assay, Process, ProcessInstance, Instrument, InstrumentInstance, LabAnalysis
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.views.generic.edit import FormMixin
 from django.views import generic
-from django.views.generic.edit import CreateView, UpdateView
-from django.views.generic import ListView, TemplateView
+from django.views.generic.edit import CreateView, UpdateView, DeleteView
+from django.views.generic import ListView, TemplateView, View
 from django.urls import reverse_lazy
 from django.urls import reverse
 from django.forms.models import inlineformset_factory
-from .forms import ProcessInstanceFormSet, InstrumentInstanceFormSet
+from .forms import ProcessInstanceFormSet, InstrumentInstanceFormSet, InstrumentFormSet
 from django.shortcuts import redirect
 from django.db import transaction
 from django.contrib.auth.models import User
@@ -16,7 +17,8 @@ from django import forms
 import pandas as pd
 import plotly.express as px
 from plotly.offline import plot
-from labmodel.forms import EditInstrumentForm, OffsetSliderForm
+import plotly.graph_objects as go
+from labmodel.forms import EditInstrumentForm, OffsetSliderForm, AddProcessForm, Labname_form, LabAssumptionsDropdownForm, ProcessDropdownForm
 
 # Create your views here.
 def index(request):
@@ -49,17 +51,143 @@ def processinstrumentlist(request):
     'instrument_list': Instrument.objects.all()
     }
     return render(request, 'create_new.html', context=context)
+
+def make_clone(request, pk):
+    if request.method == 'POST':
+        cloned_instruments = {}
+        cloned_processes = {}
+        if 'make_clone' in request.POST:
+            lab = get_object_or_404(Lab, pk=pk)
+            lab.pk = None
+            lab.creator = request.user
+            lab.name = str(lab.name) + "_" + str(request.user.username)
+            lab.from_template = False
+            lab.save()
+            old_lab = Lab.objects.get(pk=pk)
+            for assay in old_lab.assay_set.all():
+                old_assay_pk = assay.pk
+                assay.pk = None
+                assay.lab = lab
+                assay.save()
+                old_assay = Assay.objects.get(pk=old_assay_pk)
+                for processinstance in old_assay.processinstance_set.all():
+                    if processinstance.process.name not in cloned_processes:
+                        process = processinstance.process
+                        process.pk = None
+                        process.save()
+                        cloned_processes[process.name] = process.pk
+                    else:
+                        process = Process.objects.get(pk=cloned_processes[processinstance.process.name])
+                    old_processinstance_pk = processinstance.pk
+                    processinstance.pk = None
+                    processinstance.assay = assay
+                    processinstance.process = process
+                    old_processinstance = ProcessInstance.objects.get(pk=old_processinstance_pk)
+
+                    old_instrument_pk = old_processinstance.instrument.pk
+                    old_instrument = Instrument.objects.get(pk=old_instrument_pk)
+
+                    if old_processinstance.instrument.name not in cloned_instruments:
+                        instrument = old_processinstance.instrument
+                        instrument.pk = None
+                        instrument.save()
+                        cloned_instruments[instrument.name] = instrument.pk
+                        for instrumentinstance in old_instrument.instrumentinstance_set.all():
+                            instrumentinstance.pk = None
+                            instrumentinstance.instrument = instrument
+                            instrumentinstance.save()
+
+                    processinstance.instrument = Instrument.objects.get(pk=cloned_instruments[old_instrument.name])
+                    processinstance.save()
+
+    return HttpResponseRedirect(reverse('my-created'))
+
 def templatelist(request):
     context = {
-
+    'lab_template_list': Lab.objects.filter(from_template=True),
     }
     return render(request, 'template_list.html', context=context)
 
-class LabDetailView(generic.DetailView):
-    model = Lab
+class LabDetailView(LoginRequiredMixin, View):
+    template_name = "labmodel/lab_detail.html"
 
-class ProcessInstanceDetailView(generic.DetailView):
+    def get_object(self):
+        return get_object_or_404(Lab, pk=self.kwargs['pk'])
+
+    def get_context_data(self, **kwargs):
+        kwargs['lab'] = self.get_object()
+        kwargs['years'] = range(kwargs['lab'].current_year + 1, kwargs['lab'].current_year + 7)
+
+        if 'labname_form' not in kwargs:
+            kwargs['labname_form'] = Labname_form(initial={'name': self.get_object().name})
+        if 'LabAssumptionsDropdownForm' not in kwargs:
+            kwargs['LabAssumptionsDropdownForm'] = LabAssumptionsDropdownForm(
+                initial= {'offset': self.get_object().offset, 
+                'integrated_hours': self.get_object().integrated_hours, 
+                'walkup_hours': self.get_object().walkup_hours, 
+                'current_year': self.get_object().current_year, 
+                'max_utilization': self.get_object().max_utilization, 
+                'days_per_month': self.get_object().days_per_month})
+
+        return kwargs
+
+    def get(self, request, *args, **kwargs):
+        return render(request, self.template_name, self.get_context_data())
+
+    def post(self, request, *args, **kwargs):
+        ctxt = {}
+
+        if 'labname_form' in request.POST:
+            labnameform = Labname_form(request.POST)
+
+            if labnameform.is_valid():
+                lab = self.get_object()
+                lab.name = labnameform.cleaned_data['name']
+                lab.save()
+            else:
+                ctxt['labname_form'] = labnameform
+
+        elif 'LabAssumptionsDropdownForm' in request.POST:
+            labassumptionsdropdown_form = LabAssumptionsDropdownForm(request.POST)
+
+            if labassumptionsdropdown_form.is_valid():
+                lab = self.get_object()
+                lab.offset = labassumptionsdropdown_form.cleaned_data['offset']
+                lab.integrated_hours = labassumptionsdropdown_form.cleaned_data['integrated_hours']
+                lab.walkup_hours = labassumptionsdropdown_form.cleaned_data['walkup_hours']
+                lab.current_year = labassumptionsdropdown_form.cleaned_data['current_year']
+                lab.max_utilization = labassumptionsdropdown_form.cleaned_data['max_utilization']
+                lab.days_per_month = labassumptionsdropdown_form.cleaned_data['days_per_month']
+                lab.save()
+            else:
+                ctxt['labassumptionsdropdown_form'] = labassumptionsdropdown_form
+
+        return render(request, self.template_name, self.get_context_data(**ctxt))
+
+class ProcessInstanceDetailView(FormMixin, generic.DetailView):
     model = ProcessInstance
+    form_class = ProcessDropdownForm
+
+    def get_success_url(self):
+        return reverse('processinstance-detail', kwargs={'pk': self.object.id})
+
+    def get_context_data(self, **kwargs):
+        data = super(ProcessInstanceDetailView, self).get_context_data(**kwargs)
+        data['ProcessDropdownForm'] = ProcessDropdownForm(initial={'duration': self.object.duration, 'sample_count': self.object.sample_count})
+        return data
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        form = self.get_form()
+        if form.is_valid():
+            processinstance = self.object
+            processinstance.duration = form.cleaned_data['duration']
+            processinstance.sample_count = form.cleaned_data['sample_count']
+            processinstance.save()
+            return self.form_valid(form)
+        else:
+            return self.form_invalid(form)
+
 
 def labanalysislabview(request, pk):
     obj = LabAnalysis(lab=get_object_or_404(Lab, pk=pk))
@@ -67,23 +195,18 @@ def labanalysislabview(request, pk):
 
     util_dict_samples = {}
     util_dict_hours = {}
-    years = [2021, 2022, 2023, 2024, 2025, 2026]
+    y = obj.lab.current_year
+    years = [y+1, y+2, y+3, y+4, y+5, y+6]
     instrument_set = set()
     for assay in obj.lab.assay_set.all():
         for processinstance in assay.processinstance_set.all():
-            for instrumentinstance in processinstance.instrumentinstance_set.all():
+            for instrumentinstance in processinstance.instrument.instrumentinstance_set.all():
                 instrument_set.add(instrumentinstance.instrument)
 
     for yr in years:
         for instrument in instrument_set:
             bysamples = obj.instrument_utilization_samples(instrument, yr)
             byhours = obj.instrument_utilization_hours(instrument, yr)
-
-            if bysamples > 1:
-                bysamples = 1
-
-            if byhours > 1:
-                byhours = 1
 
             if instrument in util_dict_samples:
                 util_dict_samples[instrument].append(bysamples)
@@ -121,6 +244,7 @@ def labanalysislabview(request, pk):
                                         (max_util, "rgb(204, 0, 0)"),  (1.00, "rgb(204, 0, 0)")]
                )
     fig_samples.update_xaxes(side="top")
+    fig_samples['layout'].update(width=1000, height=1000, autosize=False)
     plot_div_samples = plot(fig_samples, output_type='div')
     for y in years:
         df_samples[y] = pd.Series(["{0:.2f}%".format(val * 100) for val in df_samples[y]], index = df_samples.index)
@@ -141,24 +265,15 @@ def labanalysislabview(request, pk):
                                         (max_util, "rgb(204, 0, 0)"),  (1.00, "rgb(204, 0, 0)")]
                )
     fig_hours.update_xaxes(side="top")
+    fig_hours['layout'].update(width=1000, height=1000, autosize=False)
     plot_div_hours = plot(fig_hours, output_type='div')
     for y in years:
         df_hours[y] = pd.Series(["{0:.2f}%".format(val * 100) for val in df_hours[y]], index = df_hours.index)
     df_htmldiv_hours = df_hours.to_html(classes=["table", "table-hover"])
 
-    lab = get_object_or_404(Lab, pk=pk)
-    if request.method == 'POST':
-        form = OffsetSliderForm(request.POST)
-        if form.is_valid():
-            lab.offset = form.cleaned_data['offset']
-            lab.save()
-            return HttpResponseRedirect(reverse('lab-analysis', args=(pk, )) )
-    else:
-        form = OffsetSliderForm()
-
     context = {
+    'years': years,
     'lab_analysis': obj,
-    'offsetslider_form': form,
     'lab': obj.lab,
     'lab_id': obj.lab.pk,
     'plot_div_samples': plot_div_samples,
@@ -167,8 +282,6 @@ def labanalysislabview(request, pk):
     'df_hours': df_htmldiv_hours
     }
     return render(request, 'labmodel/lab_analysis.html', context=context)
-
-
 # Forms ##########################################################
 class AssayList(LoginRequiredMixin, ListView):
     model = Assay
@@ -183,15 +296,11 @@ class AssayList(LoginRequiredMixin, ListView):
     def get_queryset(self):
         return Assay.objects.filter(lab_id=self.kwargs['pk'])
 
-class AssayCreate(CreateView):
-    model = Assay
-    fields = ['name', 'lab', 'projection_for_2021', 'projection_for_2022', 'projection_for_2023', 'projection_for_2024', 
-    'projection_for_2025', 'projection_for_2026']
 
 class AssayProcessInstanceCreate(CreateView):
     model = Assay
-    fields = ['name', 'lab', 'projection_for_2021', 'projection_for_2022', 'projection_for_2023', 'projection_for_2024', 
-    'projection_for_2025', 'projection_for_2026']
+    fields = ['name', 'lab', 'samples_per_batch', 'projection_for_year_1', 'projection_for_year_2', 'projection_for_year_3', 'projection_for_year_4', 
+    'projection_for_year_5', 'projection_for_year_6']
 
     def get_initial(self):
         lab = get_object_or_404(Lab, pk=self.kwargs['pk'])
@@ -222,7 +331,7 @@ class AssayProcessInstanceCreate(CreateView):
 
 class LabCreate(CreateView):
     model = Lab
-    fields = ['name', 'creator', 'days_per_month', 'offset', 'integrated_hours', 'walkup_hours', 'max_utilization']
+    fields = ['name', 'creator', 'current_year', 'days_per_month', 'offset', 'integrated_hours', 'walkup_hours', 'max_utilization']
 
     def get_initial(self):
         user = get_object_or_404(User, username=self.request.user.username)
@@ -237,12 +346,24 @@ class LabCreate(CreateView):
     def get_success_url(self, lab_id):
         return reverse("lab-assay-add", args=(lab_id,))
 
-class InstrumentCreate(CreateView):
-    model = Instrument
-    fields = ['name', ]
+class InstrumentAddView(TemplateView):
+    template_name = "labmodel/instrument_form.html"
 
-    def get_success_url(self):
-        return reverse("create-new")
+    # Define method to handle GET request
+    def get(self, *args, **kwargs):
+        # Create an instance of the formset
+        formset = InstrumentFormSet(queryset=Instrument.objects.none())
+        return self.render_to_response({'instrument_formset': formset})
+
+    def post(self, *args, **kwargs):
+        formset = InstrumentFormSet(data=self.request.POST)
+        # Check if submitted forms are valid
+        if formset.is_valid():
+            formset.save()
+            return redirect(reverse("create-new"))
+
+        return self.render_to_response({'instrument_formset': formset})
+
 class ProcessCreate(CreateView):
     model = Process
     fields = ['name', ]
@@ -256,8 +377,8 @@ class InstrumentInstanceAddView(TemplateView):
     # Define method to handle GET request
     def get(self, *args, **kwargs):
         # Create an instance of the formset
-        processinstance = get_object_or_404(ProcessInstance, pk=self.kwargs['pk_pi'])
-        formset = InstrumentInstanceFormSet(queryset=InstrumentInstance.objects.none(), initial = [{'processinstance': processinstance}])
+        instrument = get_object_or_404(Instrument, pk=self.kwargs['pk_inst'])
+        formset = InstrumentInstanceFormSet(queryset=InstrumentInstance.objects.none(), initial = [{'instrument': instrument}])
         return self.render_to_response({'instrumentinstance_formset': formset})
 
     def post(self, *args, **kwargs):
@@ -273,14 +394,14 @@ class LabUpdate(UpdateView):
     model = Lab
     fields = '__all__' # Not recommended (potential security issue if more fields added)
 
-def edit_instrument(request, lab_id, pk):
+def edit_instrument(request, p_id, pk):
     instrument_instance = get_object_or_404(InstrumentInstance, pk=pk)
 
     # If this is a POST request then process the Form data
     if request.method == 'POST':
 
         # Create a form instance and populate it with data from the request (binding):
-        form = EditInstrumentForm(request.POST)
+        form = EditInstrumentForm(request.POST, initial={'samples_per_day': instrument_instance.samples_per_day})
 
         # Check if the form is valid:
         if form.is_valid():
@@ -289,11 +410,11 @@ def edit_instrument(request, lab_id, pk):
             instrument_instance.save()
 
             # redirect to a new URL:
-            return HttpResponseRedirect(reverse('lab-analysis', args=(lab_id, )) )
+            return HttpResponseRedirect(reverse('processinstance-detail', args=(p_id, )) )
 
     # If this is a GET (or any other method) create the default form.
     else:
-        form = EditInstrumentForm()
+        form = EditInstrumentForm(initial={'samples_per_day': instrument_instance.samples_per_day})
 
     context = {
         'form': form,
@@ -301,3 +422,28 @@ def edit_instrument(request, lab_id, pk):
     }
 
     return render(request, 'labmodel/edit_instrument.html', context)
+
+def add_process(request, lab_id, assay_id):
+    assay = get_object_or_404(Assay, pk=assay_id)
+
+    # If this is a POST request then process the Form data
+    if request.method == 'POST':
+        form = AddProcessForm(request.POST, initial={"assay": assay})
+        if form.is_valid():
+            form.save()
+            return HttpResponseRedirect(reverse('lab-analysis', args=(lab_id, )) )
+
+    # If this is a GET (or any other method) create the default form.
+    else:
+        form = AddProcessForm(initial={"assay": assay})
+
+    context = {
+        'form': form,
+        'assay': assay,
+    }
+
+    return render(request, 'labmodel/add_process.html', context)
+
+class LabDelete(DeleteView):
+    model = Lab
+    success_url = reverse_lazy('my-created')

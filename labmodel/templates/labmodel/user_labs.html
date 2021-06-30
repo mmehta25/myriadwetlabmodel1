@@ -4,15 +4,35 @@
     <h1>Lab Models created by: {{ user.get_username }}</h1>
 
     {% if lab_list %}
-    <ul>
-
-      {% for lab in lab_list %}
-      <li>
-        {{ lab.name }}:<a href="{% url 'lab-detail' lab.id%}"> view/edit</a> | <a href="{% url 'lab-analysis' lab.id%}"> analysis</a>
-      </li>
-      {% endfor %}
-    </ul>
-
+      <table class="table table-bordered table-hover">
+        <caption>List of users lab models. Click on the lab name to view and edit the lab model. Click on analysis to view instrument utilizations, heatmaps, and duration estimates. </caption>
+        <thead>
+          <tr>
+            <th scope="col">#</th>
+            <th scope="col">Name</th>
+            <th scope="col">Analysis</th>
+            <th scope="col">Assays</th>
+            <th scope="col">Delete</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for lab in lab_list %}
+            <tr>
+              <th scope="row">{{ forloop.counter }}</th>
+              <td> <a href="{% url 'lab-detail' lab.id%}">{{ lab.name }}</a></td>
+              <td><a href="{% url 'lab-analysis' lab.id%}"> analysis</a></td>
+              <td>
+                <ul>
+                  {% for assay in lab.assay_set.all %}
+                    <li>{{ assay.name }}</li>
+                  {% endfor %}
+                </ul>
+              </td>
+              <td><a href="{% url 'lab-delete' lab.pk %}">Delete</a></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     {% else %}
       <p>There are no labs created by this user.</p>
     {% endif %}

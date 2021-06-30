@@ -10,11 +10,11 @@ from .models import Lab, Assay, Process, ProcessInstance, Instrument, Instrument
 
 @admin.register(Lab)
 class LabAdmin(admin.ModelAdmin):
-    list_display = ('name', 'creator', 'days_per_month', 'integrated_hours', 'walkup_hours')
+    list_display = ('name', 'current_year', 'creator', 'from_template', 'days_per_month', 'integrated_hours', 'walkup_hours')
 
 @admin.register(Assay)
 class AssayAdmin(admin.ModelAdmin):
-    list_display = ('name', 'id')
+    list_display = ('name', 'lab', 'display_processinstances', 'id', 'samples_per_batch')
 
 class ProcessInstanceInline(admin.TabularInline):
 	extra = 0
@@ -22,7 +22,7 @@ class ProcessInstanceInline(admin.TabularInline):
 
 @admin.register(Process)
 class ProcessAdmin(admin.ModelAdmin):
-    list_display = ('name', 'display_processinstanceinst')
+    list_display = ('name', 'labdisplay', 'display_processinstanceinst')
     inlines = [ProcessInstanceInline]
 
 @admin.register(LabAnalysis)
@@ -31,7 +31,7 @@ class LabAnalysisAdmin(admin.ModelAdmin):
 
 @admin.register(ProcessInstance)
 class ProcessInstanceAdmin(admin.ModelAdmin):
-    list_display = ('id', 'subname', 'duration', 'sample_count')
+    list_display = ('id', 'assay', 'labdisplay', 'process', 'instrument', 'subname', 'duration', 'sample_count')
 
 class InstrumentsInstanceInline(admin.TabularInline):
 	extra = 0
@@ -39,15 +39,15 @@ class InstrumentsInstanceInline(admin.TabularInline):
 
 @admin.register(Instrument)
 class InstrumentAdmin(admin.ModelAdmin):
-    list_display = ('name', )
+    list_display = ('name', 'labdisplay', 'display_processinstances')
     inlines = [InstrumentsInstanceInline]
 
 @admin.register(InstrumentInstance)
 class InstrumentInstanceAdmin(admin.ModelAdmin):
-    list_display = ('instrument', 'samples_per_day', 'integrated_or_walkup', 'identical_copies')
+    list_display = ('instrument', 'labdisplay', 'samples_per_day', 'integrated_or_walkup', 'identical_copies')
     fieldsets = (
         (None, {
-            'fields': ('instrument', 'id')
+            'fields': ('instrument', 'samples_per_day', 'id')
         }),
         ('Instance Specific Details', {
             'fields': ('integrated_or_walkup', 'identical_copies')

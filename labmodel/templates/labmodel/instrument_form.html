@@ -1,12 +1,47 @@
 {% extends "base_generic.html" %}
-
+{% block title %}{% endblock %}
 {% block content %}
-  <form action="" method="post">
-    {% csrf_token %}
-    <table>
-    	<h5>Instrument Form</h5>
-    {{ form.as_table }}
-    </table>
-    <input type="submit" value="Add Instrument">
-  </form>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add an Instrument Class: </title>
+</head>
+<body>
+    <h1>Add a new instrument class</h1>
+    <form id="form-container" method="POST">
+        {% csrf_token %}
+        {{instrument_formset.management_form}}
+        {% for form in instrument_formset %}
+        <div class="instrument-form">
+        {{form.as_p}}
+        </div>
+        {% endfor %}
+        <button id="add-form" type="button">Add Another Instrument</button>
+        <button type="submit">Create Instruments</button>
+    </form>
+    
+
+    <script>
+        let instrumentForm = document.querySelectorAll(".instrument-form")
+        let container = document.querySelector("#form-container")
+        let addButton = document.querySelector("#add-form")
+        let totalForms = document.querySelector("#id_form-TOTAL_FORMS")
+
+        let formNum = instrumentForm.length-1
+        addButton.addEventListener('click', addForm)
+
+        function addForm(e){
+            e.preventDefault()
+
+            let newForm = instrumentForm[0].cloneNode(true)
+            let formRegex = RegExp(`form-(\\d){1}-`,'g')
+
+            formNum++
+            newForm.innerHTML = newForm.innerHTML.replace(formRegex, `form-${formNum}-`)
+            container.insertBefore(newForm, addButton)
+            
+            totalForms.setAttribute('value', `${formNum+1}`)
+        }
+    </script>
+    </body>
 {% endblock %}
