@@ -16,11 +16,17 @@ from django.contrib.auth.models import User
 from django import forms
 import pandas as pd
 import plotly.express as px
+import plotly
 from plotly.offline import plot
 import plotly.graph_objects as go
 from labmodel.forms import EditInstrumentForm, OffsetSliderForm, AddProcessForm, Labname_form, LabAssumptionsDropdownForm, ProcessDropdownForm
 
-# Create your views here.
+import snowflake.connector as sf
+from snowflake.sqlalchemy import URL
+from sqlalchemy import create_engine
+from sqlalchemy.engine.url import make_url
+
+
 def index(request):
     """View function for home page of site."""
 
@@ -35,6 +41,37 @@ def index(request):
 
     # Render the HTML template index.html with the data in the context variable
     return render(request, 'index.html', context=context)
+
+def snowflake(request):
+    creds = {
+        "account": "myriad", 
+        "user": "mmehta", 
+        "database": "PRENATAL_NON_PHI_DB", 
+        "warehouse": "LOOKER_WH", 
+        "authenticator": "externalbrowser", 
+        "role": "PRENATAL_NON_PHI_DB_ALL_R", 
+        "password": "dret45onth"
+    }
+    con = sf.connect(**creds)
+    
+    snowflake_url = make_url(f'snowflake://{creds["user"]}:xx@{creds["account"]}/{creds["database"]}/RAW?warehouse={creds["warehouse"]}&role={creds["role"]}')
+    snowflake_engine = create_engine(snowflake_url, creator=lambda: con)  # will error here without snowflake package 
+    connector = con
+    cursor = con.cursor()
+    engine = snowflake_engine
+
+    sql = 'SELECT COLUMN_NAME, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS'
+    cursor.execute(sql)
+    data = []
+    data = cursor.fetchall()
+    df = pd.DataFrame(data)
+
+    df.columns = ['COLUMN_NAME', "ORDINAL_POSITION"]
+
+    context = {
+    'failure_rates_df': df
+    }
+    return render(request, 'labmodel/snowflake.html', context=context)
 
 class UserLabsListView(LoginRequiredMixin,generic.ListView):
     """Generic class-based view listing labs created by current user."""
@@ -228,48 +265,29 @@ def labanalysislabview(request, pk):
     
     data_samples = df_samples.values
     data_hours = df_hours.values
+    
+    fig1 = go.Figure(
+        data=[go.Heatmap(x=years, xgap=2, y=names, ygap=2, z=data_samples )],
+        layout_title_text="Heatmap of Instrument Utilization by Samples (Hover for details)"
+    )
+    fig1.update_xaxes(side="top")
+    fig1['layout'].update(width=900, height=900, autosize=False)
+    plot_div_samples = plot(fig1, output_type='div')
 
-    fig_samples = px.imshow(data_samples,
-        labels=dict(x="Year", y="Instrument", color="Utilization"),
-                x=years,
-                y=names, 
-                range_color=[0,1],
-                color_continuous_scale=[(0.00, "rgb(51, 51, 204)"),   (0.10, "rgb(51, 51, 204)"),
-                                        (0.10, "rgb(102, 0, 255)"),   (0.20, "rgb(102, 0, 255)"),
-                                        (0.20, "rgb(153, 51, 255)"),   (0.30, "rgb(153, 51, 255)"),
-                                        (0.30, "rgb(204, 0, 255)"),   (0.40, "rgb(204, 0, 255)"),
-                                        (0.40, "rgb(204, 0, 204)"),   (0.50, "rgb(204, 0, 204)"),
-                                        (0.50, "rgb(204, 0, 102)"),   (0.60, "rgb(204, 0, 102)"),
-                                        (0.60, "rgb(255, 80, 80)"), (max_util, "rgb(255, 80, 80)"),
-                                        (max_util, "rgb(204, 0, 0)"),  (1.00, "rgb(204, 0, 0)")]
-               )
-    fig_samples.update_xaxes(side="top")
-    fig_samples['layout'].update(width=1000, height=1000, autosize=False)
-    plot_div_samples = plot(fig_samples, output_type='div')
+    fig2 = go.Figure(
+        data=[go.Heatmap(x=years, xgap=2, y=names, ygap=2, z=data_hours )],
+        layout_title_text="Heatmap of Instrument Utilization by Hours (Hover for details)"
+    )
+    fig2.update_xaxes(side="top")
+    fig2['layout'].update(width=900, height=900, autosize=False)
+    plot_div_hours = plot(fig2, output_type='div')
+
     for y in years:
         df_samples[y] = pd.Series(["{0:.2f}%".format(val * 100) for val in df_samples[y]], index = df_samples.index)
-    df_htmldiv_samples = df_samples.to_html(classes=["table", "table-hover"])
-
-    fig_hours = px.imshow(data_hours,
-        labels=dict(x="Year", y="Instrument", color="Utilization"),
-                x=years,
-                y=names, 
-                range_color=[0,1],
-                color_continuous_scale=[(0.00, "rgb(51, 51, 204)"),   (0.10, "rgb(51, 51, 204)"),
-                                        (0.10, "rgb(102, 0, 255)"),   (0.20, "rgb(102, 0, 255)"),
-                                        (0.20, "rgb(153, 51, 255)"),   (0.30, "rgb(153, 51, 255)"),
-                                        (0.30, "rgb(204, 0, 255)"),   (0.40, "rgb(204, 0, 255)"),
-                                        (0.40, "rgb(204, 0, 204)"),   (0.50, "rgb(204, 0, 204)"),
-                                        (0.50, "rgb(204, 0, 102)"),   (0.60, "rgb(204, 0, 102)"),
-                                        (0.60, "rgb(255, 80, 80)"), (max_util, "rgb(255, 80, 80)"),
-                                        (max_util, "rgb(204, 0, 0)"),  (1.00, "rgb(204, 0, 0)")]
-               )
-    fig_hours.update_xaxes(side="top")
-    fig_hours['layout'].update(width=1000, height=1000, autosize=False)
-    plot_div_hours = plot(fig_hours, output_type='div')
-    for y in years:
         df_hours[y] = pd.Series(["{0:.2f}%".format(val * 100) for val in df_hours[y]], index = df_hours.index)
+
     df_htmldiv_hours = df_hours.to_html(classes=["table", "table-hover"])
+    df_htmldiv_samples = df_samples.to_html(classes=["table", "table-hover"])
 
     context = {
     'years': years,

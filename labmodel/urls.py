@@ -3,6 +3,7 @@ from . import views
 
 urlpatterns = [
 	path('', views.index, name='index'),
+	path('snow/', views.snowflake, name='snowflake'),
 	path('mylabs/', views.UserLabsListView.as_view(), name='my-created'),
 	#User lab links
 	path('analysis/<int:pk>', views.labanalysislabview, name="lab-analysis"),

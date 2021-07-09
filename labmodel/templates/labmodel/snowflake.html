@@ -1,0 +1,7 @@
+{% extends "base_generic.html" %}
+{% block content %}
+<h3>Failure Rates from Snowflake Pulling Data</h3>
+  {% autoescape off %}
+  {{ failure_rates_df }}
+  {% endautoescape %}
+{% endblock %}

@@ -1,7 +1,7 @@
 {% extends "base_generic.html" %}
 
 {% block content %}
-  <h1>Model Name: {{ lab.name }}</h1>
+  <h1 class="display-4">Model Name: {{ lab.name }} </h1>
   <p><strong>Lab Name:</strong> {{ lab.name }}
   <a data-toggle="collapse" href="#collapseExample" role="button" aria-expanded="false" aria-controls="collapseExample">
             edit
@@ -24,13 +24,13 @@
           </a></caption>
         <thead>
           <tr>
-            <th scope="col"> Name </th>
-            <th scope="col"> Current Year </th>
-            <th scope="col"> Offset </th>
-            <th scope="col"> Max Utilization </th>
-            <th scope="col"> Integrated Hours </th>
-            <th scope="col"> Walkup Hours </th>
-            <th scope="col"> Days per month </th>
+            <th scope="col"> <a data-toggle="tooltip" data-placement="top" title="Name of the assay." href="">Name</a> </th>
+            <th scope="col"> <a data-toggle="tooltip" data-placement="top" title="Starting year for the analysis." href="">Current Year</a> </th>
+            <th scope="col"> <a data-toggle="tooltip" data-placement="top" title="The offset value is multiplied to all duration estimates to account for delays." href="">Offset</a> </th>
+            <th scope="col"> <a data-toggle="tooltip" data-placement="top" title="Threshhold for percent utilization for instruments to be considered maximal." href="">Max Utilization </th>
+            <th scope="col"> <a data-toggle="tooltip" data-placement="top" title="Hours that integrated instruments run per day" href="">Integrated Hours</a> </th>
+            <th scope="col"> <a data-toggle="tooltip" data-placement="top" title="Hours that walkup instruments run per day" href="">Walkup Hours</a> </th>
+            <th scope="col"> <a data-toggle="tooltip" data-placement="top" title="Estimate for how many days per month the instruments will run." href="">Days per month</a> </th>
           </tr>
         </thead>
         <tbody>
@@ -136,4 +136,9 @@
               </div>
       </div>
       {% endfor %}
+  <script>
+    $(function () {
+      $('[data-toggle="tooltip"]').tooltip()
+    })
+</script>
 {% endblock %}

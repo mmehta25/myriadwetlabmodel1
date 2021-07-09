@@ -1,7 +1,7 @@
 {% extends "base_generic.html" %}
 
 {% block content %}
-    <h1>Lab Models created by: {{ user.get_username }}</h1>
+    <h1 class="display-4">Lab Models created by: {{ user.get_username }}</h1>
 
     {% if lab_list %}
       <table class="table table-bordered table-hover">
@@ -20,7 +20,12 @@
             <tr>
               <th scope="row">{{ forloop.counter }}</th>
               <td> <a href="{% url 'lab-detail' lab.id%}">{{ lab.name }}</a></td>
-              <td><a href="{% url 'lab-analysis' lab.id%}"> analysis</a></td>
+              <td>
+                <ul style="list-style: none;">
+                  <li><a href="{% url 'lab-analysis' lab.id%}"> instrument utilizations</a></li>
+                  <li><a href=""> assay durations </a></li>
+                </ul>
+              </td>
               <td>
                 <ul>
                   {% for assay in lab.assay_set.all %}

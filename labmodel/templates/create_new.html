@@ -2,7 +2,7 @@
 {% load static %}
   <link rel="stylesheet" href="{% static 'css/styles.css' %}">
 {% block content %}
-  <h2>Create New Lab Model</h2>
+  <h2 class="display-4">Create New Lab Model</h2>
   <ul style = "list-style: none">
     <li><a href="{% url 'lab-create' %}"><strong>From Scratch</strong></a></li>
     <li><a href="{% url 'template-list' %}"><strong>From Template</strong></a></li>
