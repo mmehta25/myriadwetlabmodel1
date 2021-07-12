@@ -49,7 +49,7 @@ def snowflake(request):
         "database": "PRENATAL_NON_PHI_DB", 
         "warehouse": "LOOKER_WH", 
         "authenticator": "externalbrowser", 
-        "role": "PRENATAL_NON_PHI_DB_ALL_R", 
+        "role": "PRENATAL_NON_PHI_LOOKER", 
         "password": "dret45onth"
     }
     con = sf.connect(**creds)
@@ -60,16 +60,55 @@ def snowflake(request):
     cursor = con.cursor()
     engine = snowflake_engine
 
-    sql = 'SELECT COLUMN_NAME, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS'
+    #sql = 'SELECT COLUMN_NAME, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS'
+    sql = f"""SELECT
+    CASE WHEN (CASE WHEN sample_summary.statuses:gender_mismatch IS NOT NULL
+                OR sample_summary.statuses:lab_processing_error IS NOT NULL
+               OR sample_summary.statuses:sample_qc_failure IS NOT NULL THEN 'Yes'
+              ELSE 'No' END) = 'Yes'
+               AND (COALESCE(sample_summary.completed_on, (sample_summary.statuses:terminated[0]::timestamp), (sample_summary.statuses:canceled[1]::timestamp))) IS NOT NULL
+               AND sample_summary.completed_on IS NULL THEN 'Yes'
+              WHEN (arms_sample.review_state_code = 0) THEN 'Yes'
+              ELSE 'No' END   AS "sample_summary.analytical_failure",
+        (TO_CHAR(TO_DATE(CONVERT_TIMEZONE('UTC', 'America/Los_Angeles', CAST(result_group.created_at  AS TIMESTAMP_NTZ))), 'YYYY-MM-DD')) AS "result_group.created_date",
+        (TO_CHAR(DATE_TRUNC('month', CONVERT_TIMEZONE('UTC', 'America/Los_Angeles', CAST(result_group.created_at  AS TIMESTAMP_NTZ))), 'YYYY-MM')) AS "result_group.created_month",
+    COUNT(DISTINCT sample_summary.id ) AS "sample_summary.sample_count"
+FROM EXT.ips_xtr_timings  AS ips_xtr_timings
+INNER JOIN EXT.library_prep_labware  AS library_prep_labware ON (COALESCE(library_prep_labware.adlig_plate, library_prep_labware.ips_adlig_plate)) = ips_xtr_timings.batch_name
+LEFT JOIN GOLD.labware  AS extraction_plate ON extraction_plate.barcode = library_prep_labware.input_labware
+LEFT JOIN PRENATAL_NON_PHI_DB.LOOKER_PDTS.LR$7A6551626091795705_CF_EXTRACTION AS extraction_tube ON extraction_plate.id = extraction_tube.extraction_plate_id
+LEFT JOIN EXT.sample_summary  AS sample_summary ON extraction_tube.sample_name = sample_summary.wetarms_id::varchar
+LEFT JOIN GOLD.labware_op  AS cleanup_op ON ips_xtr_timings.ips_library_pico_quant_latest_id =  cleanup_op.id
+LEFT JOIN GOLD.labware  AS cleanup_plate ON cleanup_op.labware_id = cleanup_plate.id
+LEFT JOIN GOLD.cleanup_tube  AS cleanup_tube ON cleanup_tube.labware_id = cleanup_plate.id AND extraction_tube.coor = cleanup_tube.coor
+LEFT JOIN LOOKER_PDTS.LR$7A5XL1626108185317_IPS_CONSOLIDATION AS ips_consolidation ON cleanup_tube.id = ips_consolidation.cleanup_tube
+LEFT JOIN LOOKER_PDTS.LR$7AV7M1626091875501_IPS_MANIFEST AS ips_manifest ON ips_manifest.cleanup_tube = ips_consolidation.cleanup_tube
+    AND ips_consolidation.consolidation_plate = ips_manifest.consolidation_plate
+LEFT JOIN EXT.metrics_ips_seqmetrics  AS metrics_ips_seqmetrics ON metrics_ips_seqmetrics.result_id = ips_manifest.result_id
+LEFT JOIN -- if dev -- PRENATAL_LAB.ARMS_RESULT
+   "ANALYTICS_DB"."PRENATAL_LAB"."ARMS_RESULT"
+   AS result ON metrics_ips_seqmetrics.result_id = result.external_id
+LEFT JOIN -- if dev -- PRENATAL_LAB.RESULT_GROUP
+   "ANALYTICS_DB"."PRENATAL_LAB"."RESULT_GROUP"
+   AS result_group ON result.result_group_id = result_group.result_group_id
+LEFT JOIN GOLD.arms_sample  AS arms_sample ON arms_sample.id::text = sample_summary.sample_name
+WHERE ((( result_group.created_at  ) >= ((CONVERT_TIMEZONE('America/Los_Angeles', 'UTC', CAST(DATEADD('month', -2, DATE_TRUNC('month', DATE_TRUNC('day', CONVERT_TIMEZONE('UTC', 'America/Los_Angeles', CAST(CURRENT_TIMESTAMP() AS TIMESTAMP_NTZ))))) AS TIMESTAMP_NTZ)))) AND ( result_group.created_at  ) < ((CONVERT_TIMEZONE('America/Los_Angeles', 'UTC', CAST(DATEADD('month', 3, DATEADD('month', -2, DATE_TRUNC('month', DATE_TRUNC('day', CONVERT_TIMEZONE('UTC', 'America/Los_Angeles', CAST(CURRENT_TIMESTAMP() AS TIMESTAMP_NTZ)))))) AS TIMESTAMP_NTZ))))))
+GROUP BY
+    (TO_DATE(CONVERT_TIMEZONE('UTC', 'America/Los_Angeles', CAST(result_group.created_at  AS TIMESTAMP_NTZ)))),
+    (DATE_TRUNC('month', CONVERT_TIMEZONE('UTC', 'America/Los_Angeles', CAST(result_group.created_at  AS TIMESTAMP_NTZ)))),
+    1
+ORDER BY
+    2 DESC
+FETCH NEXT 500 ROWS ONLY"""
     cursor.execute(sql)
     data = []
     data = cursor.fetchall()
     df = pd.DataFrame(data)
 
-    df.columns = ['COLUMN_NAME', "ORDINAL_POSITION"]
+    df.columns = ['FAIL?', "DATE", "MONTH", "SAMPLE COUNT"]
 
     context = {
-    'failure_rates_df': df
+    'failure_rates_df': df.to_html(classes=["table", "table-hover"])
     }
     return render(request, 'labmodel/snowflake.html', context=context)
 
