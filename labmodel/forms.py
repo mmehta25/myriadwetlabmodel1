@@ -1,7 +1,8 @@
 from django.forms import ModelForm, inlineformset_factory, modelformset_factory
-from .models import Assay, ProcessInstance, Instrument, InstrumentInstance, Lab
+from .models import Assay, ProcessInstance, Instrument, InstrumentInstance, Lab, LabAnalysis
 from django import forms
 from .widgets import RangeInput
+import datetime
 
 class AssayForm(ModelForm):
     class Meta:
@@ -75,4 +76,29 @@ class LabAssumptionsDropdownForm(ModelForm):
         help_texts = {
             'offset': None,
         }
+class LabAnalysisForm(ModelForm):
+    class Meta:
+        model= LabAnalysis
+        fields = ('failure_rate', )
 
+class FailureRateDateRangeForm(forms.Form):
+    date = forms.DateField(input_formats=['%Y-%m-%d', ], initial=datetime.date.today, help_text="Pick end date for 3 month date range. Default is todays date.")
+    def clean_date(self):
+        data = self.cleaned_data['date']
+
+        # Check if a date is not in the past.
+        if data > datetime.date.today():
+            raise ValidationError(_('Invalid date - date in future'))
+        # Remember to always return the cleaned data.
+        return data
+
+class OffsetDateRangeForm(forms.Form):
+    date = forms.DateField(input_formats=['%Y-%m-%d', ], initial=datetime.date.today, help_text="Pick end date for 3 month date range. Default is todays date.")
+    def clean_date(self):
+        data = self.cleaned_data['date']
+
+        # Check if a date is not in the past.
+        if data > datetime.date.today():
+            raise ValidationError(_('Invalid date - date in future'))
+        # Remember to always return the cleaned data.
+        return data

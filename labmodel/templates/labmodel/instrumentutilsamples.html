@@ -1,0 +1,19 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+<h1 class="display-4">Instrument Utilizations, Lab: {{ lab_analysis.lab.name }}</h1>
+<p>Computes instrument utilization by hours for a given instrument_name and year. Computes total run hours for each process by 
+    multiplying the duration of the process for a fixed sample count by the projectd volume for that assay divided by days
+    per year * the number of samples/day for the process. The total run hours are summed across all processes and this number is
+    divided by the total number of hours = integrated hours * integrated copies of instrument + walkup hours * walkup copies 
+    of the instrument.</p>
+<body>
+  <h3>Instrument utilization (Samples)</h3>
+  {% autoescape off %}
+  {{ df_samples }}
+  {% endautoescape %}
+  {% autoescape off %}
+  {{ plot_div_samples }}
+  {% endautoescape %}
+</body>
+{% endblock %}

@@ -1,17 +1,18 @@
 {% extends "base_generic.html" %}
 
 {% block content %}
-<h1 class="display-4">Calculations for Lab: {{ lab_analysis.lab.name }}</h1>
+<h1 class="display-4">Analysis for Lab: {{ lab_analysis.lab.name }}</h1>
+<h3>Lab Overview:</h3>
 <div class= "container">
 <div class="row">
   <div class="col-md-4 nopadding">
     <h5>Lab Level Assumptions:</h5>
       <ul>
-        <li>Offset: {{ lab.offset }}</li>
-        <li>Max Utilization: {{ lab.max_utilization }}%</li>
-        <li>Integrated Hours: {{ lab.integrated_hours }}</li>
-        <li>Walkup Hours: {{ lab.walkup_hours }}</li>
-        <li>Days per month: {{ lab.days_per_month }}</li> 
+        <li>Offset: {{ lab_analysis.lab.offset }}</li>
+        <li>Max Utilization: {{ lab_analysis.lab.max_utilization }}%</li>
+        <li>Integrated Hours: {{ lab_analysis.lab.integrated_hours }}</li>
+        <li>Walkup Hours: {{ lab_analysis.lab.walkup_hours }}</li>
+        <li>Days per month: {{ lab_analysis.lab.days_per_month }}</li> 
       </ul>
   </div>
   <div class="col-md-8 nopadding">
@@ -27,7 +28,7 @@
               </tr>
             </thead>
             <tbody>
-              {% for assay in lab.assay_set.all %}
+              {% for assay in lab_analysis.lab.assay_set.all %}
                 <tr>
                   <th scope="row">{{ assay.name }}</th>
                   <td> {{ assay.projection_for_year_1 }} </td>
@@ -43,7 +44,7 @@
   </div>
 </div>
 <div class="row">
-  {% for assay in lab.assay_set.all %}
+  {% for assay in lab_analysis.lab.assay_set.all %}
   <div class="col">
     <h6><strong>{{ assay.name }}: </strong></h6>
     <table class="table table-bordered table-hover table-sm">
@@ -78,21 +79,30 @@
   {% endfor %}  
 </div>
 </div>
-  <body>
-  <h3>Instrument utilization (Samples)</h3>
-  {% autoescape off %}
-  {{ df_samples }}
-  {% endautoescape %}
-  {% autoescape off %}
-  {{ plot_div_samples }}
-  {% endautoescape %}
+<h2>Pull Historical Data from Snowflake:</h2>
 
-  <h3>Instrument utilization (Hours)</h3>
-  {% autoescape off %}
-  {{ df_hours }}
-  {% endautoescape %}
-  {% autoescape off %}
-  {{ plot_div_hours }}
-  {% endautoescape %}
-</body>
+<h3>Set Failure Rate:</h3>
+<p><strong> Current Failure Rate:</strong> {{ lab_analysis.failure_rate }}</p>
+    <form action="" method="post">
+    {% csrf_token %}
+    <table>
+    {{ LabAnalysisForm.as_table }}
+    </table>
+    <input name='failurerate_form' type="submit" value="Submit">
+    </form>
+  <a href = "{% url 'snowflake' %}"> see historical failure rate data </a>
+
+<h3>Set Offset:</h3>
+<p><strong> Current Offset:</strong> {{ lab_analysis.lab.offset }}</p>
+    <form action="" method="post">
+    {% csrf_token %}
+    <table>
+    </table>
+    <input type="submit" value="Submit">
+    </form>
+  <a href = "{% url 'snowflake2' %}"> see historical offset/duration data </a>
+
+  <h3>Analysis Links:</h3>
+  <a href="{% url 'inst-hours' lab_analysis.lab.pk %}" >Instrument Utilization using Hours</a><br>
+  <a href="{% url 'inst-samples' lab_analysis.lab.pk %}" >Instrument Utilization using Samples</a>
 {% endblock %}

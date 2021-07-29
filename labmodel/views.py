@@ -19,7 +19,7 @@ import plotly.express as px
 import plotly
 from plotly.offline import plot
 import plotly.graph_objects as go
-from labmodel.forms import EditInstrumentForm, OffsetSliderForm, AddProcessForm, Labname_form, LabAssumptionsDropdownForm, ProcessDropdownForm
+from labmodel.forms import EditInstrumentForm, OffsetSliderForm, AddProcessForm, Labname_form, LabAssumptionsDropdownForm, ProcessDropdownForm, FailureRateDateRangeForm, OffsetDateRangeForm, LabAnalysisForm
 
 import snowflake.connector as sf
 from snowflake.sqlalchemy import URL
@@ -43,74 +43,124 @@ def index(request):
     return render(request, 'index.html', context=context)
 
 def snowflake(request):
-    creds = {
-        "account": "myriad", 
-        "user": "mmehta", 
-        "database": "PRENATAL_NON_PHI_DB", 
-        "warehouse": "LOOKER_WH", 
-        "authenticator": "externalbrowser", 
-        "role": "PRENATAL_NON_PHI_LOOKER", 
-        "password": "dret45onth"
-    }
-    con = sf.connect(**creds)
+    if request.method == 'POST':
+        form = FailureRateDateRangeForm(request.POST)
+        if form.is_valid():
+            date = form.cleaned_data['date']
+            date = str(date)
+            year = date[:4]
+            month = date[5:7]
+            day = date[8:]
+            creds = {
+                "account": "myriad", 
+                "user": "mmehta", 
+                "database": "PRENATAL_NON_PHI_DB", 
+                "warehouse": "LOOKER_WH", 
+                "authenticator": "externalbrowser", 
+                "role": "PRENATAL_NON_PHI_LOOKER", 
+                "password": "dret45onth"
+            }
+            con = sf.connect(**creds)
+            
+            snowflake_url = make_url(f'snowflake://{creds["user"]}:xx@{creds["account"]}/{creds["database"]}/RAW?warehouse={creds["warehouse"]}&role={creds["role"]}')
+            snowflake_engine = create_engine(snowflake_url, creator=lambda: con)  # will error here without snowflake package 
+            connector = con
+            cursor = con.cursor()
+            engine = snowflake_engine
+            sql = f"""SELECT 
+                        COUNT(result.id),
+                        result.review_state_code
+                        FROM GOLD.result as result
+                        WHERE (result.created_at < date_from_parts({year}, {month}, {day}) AND result.created_at >= (add_months(date_from_parts({year}, {month}, {day}),-3))) AND review_state_code != -1 AND substring(result.external_id,0,3)='IPS'
+                        GROUP BY 2""".format(year=year, month=month, day=day)
+            cursor.execute(sql)
+            data = []
+            data = cursor.fetchall()
+            df = pd.DataFrame(data)
+
+            df.columns = ['Count', "Review State Code"]
+            if int(month) >= 4:
+                low_month = str(int(month) - 3)
+                low_year = year
+            else:
+                low_month = str(12+(int(month)-3))
+                low_year = str(int(year)-1)
+            failure = sum(list((df.loc[df['Review State Code'] == 0])['Count']))/sum(df['Count'])
+            context = {
+            "low_date": low_month+"/"+day+"/"+low_year,
+            "high_date": month+"/"+day+"/"+year,
+            "form": form,
+            "rate": failure,
+            'failure_rates_df': df.to_html(classes=["table", "table-hover"])
+            }
+            return render(request, 'labmodel/snowflake.html', context=context)
+        else:
+            context = {"form": form}
+    else:
+        form = FailureRateDateRangeForm()
+        context = {"form": form}
     
-    snowflake_url = make_url(f'snowflake://{creds["user"]}:xx@{creds["account"]}/{creds["database"]}/RAW?warehouse={creds["warehouse"]}&role={creds["role"]}')
-    snowflake_engine = create_engine(snowflake_url, creator=lambda: con)  # will error here without snowflake package 
-    connector = con
-    cursor = con.cursor()
-    engine = snowflake_engine
-
-    #sql = 'SELECT COLUMN_NAME, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS'
-    sql = f"""SELECT
-    CASE WHEN (CASE WHEN sample_summary.statuses:gender_mismatch IS NOT NULL
-                OR sample_summary.statuses:lab_processing_error IS NOT NULL
-               OR sample_summary.statuses:sample_qc_failure IS NOT NULL THEN 'Yes'
-              ELSE 'No' END) = 'Yes'
-               AND (COALESCE(sample_summary.completed_on, (sample_summary.statuses:terminated[0]::timestamp), (sample_summary.statuses:canceled[1]::timestamp))) IS NOT NULL
-               AND sample_summary.completed_on IS NULL THEN 'Yes'
-              WHEN (arms_sample.review_state_code = 0) THEN 'Yes'
-              ELSE 'No' END   AS "sample_summary.analytical_failure",
-        (TO_CHAR(TO_DATE(CONVERT_TIMEZONE('UTC', 'America/Los_Angeles', CAST(result_group.created_at  AS TIMESTAMP_NTZ))), 'YYYY-MM-DD')) AS "result_group.created_date",
-        (TO_CHAR(DATE_TRUNC('month', CONVERT_TIMEZONE('UTC', 'America/Los_Angeles', CAST(result_group.created_at  AS TIMESTAMP_NTZ))), 'YYYY-MM')) AS "result_group.created_month",
-    COUNT(DISTINCT sample_summary.id ) AS "sample_summary.sample_count"
-FROM EXT.ips_xtr_timings  AS ips_xtr_timings
-INNER JOIN EXT.library_prep_labware  AS library_prep_labware ON (COALESCE(library_prep_labware.adlig_plate, library_prep_labware.ips_adlig_plate)) = ips_xtr_timings.batch_name
-LEFT JOIN GOLD.labware  AS extraction_plate ON extraction_plate.barcode = library_prep_labware.input_labware
-LEFT JOIN PRENATAL_NON_PHI_DB.LOOKER_PDTS.LR$7A6551626091795705_CF_EXTRACTION AS extraction_tube ON extraction_plate.id = extraction_tube.extraction_plate_id
-LEFT JOIN EXT.sample_summary  AS sample_summary ON extraction_tube.sample_name = sample_summary.wetarms_id::varchar
-LEFT JOIN GOLD.labware_op  AS cleanup_op ON ips_xtr_timings.ips_library_pico_quant_latest_id =  cleanup_op.id
-LEFT JOIN GOLD.labware  AS cleanup_plate ON cleanup_op.labware_id = cleanup_plate.id
-LEFT JOIN GOLD.cleanup_tube  AS cleanup_tube ON cleanup_tube.labware_id = cleanup_plate.id AND extraction_tube.coor = cleanup_tube.coor
-LEFT JOIN LOOKER_PDTS.LR$7A5XL1626108185317_IPS_CONSOLIDATION AS ips_consolidation ON cleanup_tube.id = ips_consolidation.cleanup_tube
-LEFT JOIN LOOKER_PDTS.LR$7AV7M1626091875501_IPS_MANIFEST AS ips_manifest ON ips_manifest.cleanup_tube = ips_consolidation.cleanup_tube
-    AND ips_consolidation.consolidation_plate = ips_manifest.consolidation_plate
-LEFT JOIN EXT.metrics_ips_seqmetrics  AS metrics_ips_seqmetrics ON metrics_ips_seqmetrics.result_id = ips_manifest.result_id
-LEFT JOIN -- if dev -- PRENATAL_LAB.ARMS_RESULT
-   "ANALYTICS_DB"."PRENATAL_LAB"."ARMS_RESULT"
-   AS result ON metrics_ips_seqmetrics.result_id = result.external_id
-LEFT JOIN -- if dev -- PRENATAL_LAB.RESULT_GROUP
-   "ANALYTICS_DB"."PRENATAL_LAB"."RESULT_GROUP"
-   AS result_group ON result.result_group_id = result_group.result_group_id
-LEFT JOIN GOLD.arms_sample  AS arms_sample ON arms_sample.id::text = sample_summary.sample_name
-WHERE ((( result_group.created_at  ) >= ((CONVERT_TIMEZONE('America/Los_Angeles', 'UTC', CAST(DATEADD('month', -2, DATE_TRUNC('month', DATE_TRUNC('day', CONVERT_TIMEZONE('UTC', 'America/Los_Angeles', CAST(CURRENT_TIMESTAMP() AS TIMESTAMP_NTZ))))) AS TIMESTAMP_NTZ)))) AND ( result_group.created_at  ) < ((CONVERT_TIMEZONE('America/Los_Angeles', 'UTC', CAST(DATEADD('month', 3, DATEADD('month', -2, DATE_TRUNC('month', DATE_TRUNC('day', CONVERT_TIMEZONE('UTC', 'America/Los_Angeles', CAST(CURRENT_TIMESTAMP() AS TIMESTAMP_NTZ)))))) AS TIMESTAMP_NTZ))))))
-GROUP BY
-    (TO_DATE(CONVERT_TIMEZONE('UTC', 'America/Los_Angeles', CAST(result_group.created_at  AS TIMESTAMP_NTZ)))),
-    (DATE_TRUNC('month', CONVERT_TIMEZONE('UTC', 'America/Los_Angeles', CAST(result_group.created_at  AS TIMESTAMP_NTZ)))),
-    1
-ORDER BY
-    2 DESC
-FETCH NEXT 500 ROWS ONLY"""
-    cursor.execute(sql)
-    data = []
-    data = cursor.fetchall()
-    df = pd.DataFrame(data)
-
-    df.columns = ['FAIL?', "DATE", "MONTH", "SAMPLE COUNT"]
-
-    context = {
-    'failure_rates_df': df.to_html(classes=["table", "table-hover"])
-    }
     return render(request, 'labmodel/snowflake.html', context=context)
+
+def snowflake2(request):
+    if request.method == 'POST':
+        form = OffsetDateRangeForm(request.POST)
+        if form.is_valid():
+            date = form.cleaned_data['date']
+            date = str(date)
+            year = date[:4]
+            month = date[5:7]
+            day = date[8:]
+            creds = {
+                "account": "myriad", 
+                "user": "mmehta", 
+                "database": "PRENATAL_NON_PHI_DB", 
+                "warehouse": "LOOKER_WH", 
+                "authenticator": "externalbrowser", 
+                "role": "PRENATAL_NON_PHI_LOOKER", 
+                "password": "dret45onth"
+            }
+            con = sf.connect(**creds)
+            
+            snowflake_url = make_url(f'snowflake://{creds["user"]}:xx@{creds["account"]}/{creds["database"]}/RAW?warehouse={creds["warehouse"]}&role={creds["role"]}')
+            snowflake_engine = create_engine(snowflake_url, creator=lambda: con)  # will error here without snowflake package 
+            connector = con
+            cursor = con.cursor()
+            engine = snowflake_engine
+            sql = f"""SELECT 
+                        COUNT(result.id),
+                        result.review_state_code
+                        FROM GOLD.result as result
+                        WHERE (result.created_at < date_from_parts({year}, {month}, {day}) AND result.created_at >= (add_months(date_from_parts({year}, {month}, {day}),-3))) AND review_state_code != -1 AND substring(result.external_id,0,3)='IPS'
+                        GROUP BY 2""".format(year=year, month=month, day=day)
+            cursor.execute(sql)
+            data = []
+            data = cursor.fetchall()
+            df = pd.DataFrame(data)
+
+            df.columns = ['Count', "Review State Code"]
+            if int(month) >= 4:
+                low_month = str(int(month) - 3)
+                low_year = year
+            else:
+                low_month = str(12+(int(month)-3))
+                low_year = str(int(year)-1)
+            failure = sum(list((df.loc[df['Review State Code'] == 0])['Count']))/sum(df['Count'])
+            context = {
+            "low_date": low_month+"/"+day+"/"+low_year,
+            "high_date": month+"/"+day+"/"+year,
+            "form": form,
+            "rate": failure,
+            'offset_df': df.to_html(classes=["table", "table-hover"])
+            }
+            return render(request, 'labmodel/snowflake2.html', context=context)
+        else:
+            context = {"form": form}
+    else:
+        form = FailureRateDateRangeForm()
+        context = {"form": form}
+    
+    return render(request, 'labmodel/snowflake2.html', context=context)
 
 class UserLabsListView(LoginRequiredMixin,generic.ListView):
     """Generic class-based view listing labs created by current user."""
@@ -119,14 +169,6 @@ class UserLabsListView(LoginRequiredMixin,generic.ListView):
 
     def get_queryset(self):
         return Lab.objects.filter(creator=self.request.user)
-
-def processinstrumentlist(request):
-    """Generic class-based view listing all Processes and Instruments"""
-    context = {
-    'process_list': Process.objects.all(),
-    'instrument_list': Instrument.objects.all()
-    }
-    return render(request, 'create_new.html', context=context)
 
 def make_clone(request, pk):
     if request.method == 'POST':
@@ -264,8 +306,100 @@ class ProcessInstanceDetailView(FormMixin, generic.DetailView):
         else:
             return self.form_invalid(form)
 
+class LabAnalysisLabView(FormMixin, generic.DetailView):
+    template_name = "labmodel/lab_analysis.html"
 
-def labanalysislabview(request, pk):
+    def get_object(self):
+        lab=get_object_or_404(Lab, pk=self.kwargs['pk'])
+        obj = LabAnalysis.objects.filter(lab=lab).all()
+        if len(obj) == 0:
+            obj = LabAnalysis(lab=get_object_or_404(Lab, pk=self.kwargs['pk']))
+            obj.save()
+            return obj
+        return obj[0]
+
+    def get_context_data(self, **kwargs):
+        kwargs['lab_analysis'] = self.get_object()
+        kwargs['years'] = range(kwargs['lab_analysis'].lab.current_year + 1, kwargs['lab_analysis'].lab.current_year + 7)
+
+        if 'failurerate_form' not in kwargs:
+            kwargs['LabAnalysisForm'] = LabAnalysisForm()
+
+        return kwargs
+
+    def get(self, request, *args, **kwargs):
+        return render(request, self.template_name, self.get_context_data())
+
+    def post(self, request, *args, **kwargs):
+        ctxt = {}
+
+        if 'failurerate_form' in request.POST:
+            failurerateform = LabAnalysisForm(request.POST)
+
+            if failurerateform.is_valid():
+                lab_analysis = self.get_object()
+                lab_analysis.failure_rate = failurerateform.cleaned_data['failure_rate']
+                lab_analysis.save()
+            else:
+                ctxt['failurerate_form'] = failurerateform
+
+        return render(request, self.template_name, self.get_context_data(**ctxt))
+def instrumentutilhours(request, pk):
+    obj = LabAnalysis(lab=get_object_or_404(Lab, pk=pk))
+    obj.save()
+
+    util_dict_samples = {}
+    util_dict_hours = {}
+    y = obj.lab.current_year
+    years = [y+1, y+2, y+3, y+4, y+5, y+6]
+    instrument_set = set()
+    for assay in obj.lab.assay_set.all():
+        for processinstance in assay.processinstance_set.all():
+            for instrumentinstance in processinstance.instrument.instrumentinstance_set.all():
+                instrument_set.add(instrumentinstance.instrument)
+
+    for yr in years:
+        for instrument in instrument_set:
+            byhours = obj.instrument_utilization_hours(instrument, yr)
+            if instrument in util_dict_hours:
+                util_dict_hours[instrument].append(byhours)
+            else:
+                util_dict_hours[instrument] = [byhours]
+    names = []
+    for instrument in instrument_set:
+        names.append(instrument.name)
+
+    max_util = obj.lab.max_utilization / 100
+
+    df_hours = pd.DataFrame.from_dict(util_dict_hours, orient='index', columns=years)
+    
+    
+    data_hours = df_hours.values
+    
+    fig2 = go.Figure(
+        data=[go.Heatmap(x=years, xgap=2, y=names, ygap=2, z=data_hours )],
+        layout_title_text="Heatmap of Instrument Utilization by Hours (Hover for details)"
+    )
+    fig2.update_xaxes(side="top")
+    fig2['layout'].update(width=900, height=900, autosize=False)
+    plot_div_hours = plot(fig2, output_type='div')
+
+    for y in years:
+        df_hours[y] = pd.Series(["{0:.2f}%".format(val * 100) for val in df_hours[y]], index = df_hours.index)
+
+    df_htmldiv_hours = df_hours.to_html(classes=["table", "table-hover"])
+
+    context = {
+    'years': years,
+    'lab_analysis': obj,
+    'lab': obj.lab,
+    'lab_id': obj.lab.pk,
+    'plot_div_hours': plot_div_hours,
+    'df_hours': df_htmldiv_hours
+    }
+    return render(request, 'labmodel/instrumentutilhours.html', context=context)
+
+def instrumentutilsamples(request, pk):
     obj = LabAnalysis(lab=get_object_or_404(Lab, pk=pk))
     obj.save()
 
@@ -338,7 +472,7 @@ def labanalysislabview(request, pk):
     'plot_div_hours': plot_div_hours,
     'df_hours': df_htmldiv_hours
     }
-    return render(request, 'labmodel/lab_analysis.html', context=context)
+    return render(request, 'labmodel/instrumentutilsamples.html', context=context)
 # Forms ##########################################################
 class AssayList(LoginRequiredMixin, ListView):
     model = Assay
@@ -401,7 +535,19 @@ class LabCreate(CreateView):
             return HttpResponseRedirect(self.get_success_url(self.object.pk))
 
     def get_success_url(self, lab_id):
-        return reverse("lab-assay-add", args=(lab_id,))
+        return reverse("class-add", args=(lab_id,))
+
+def processinstrumentclassadd(request, pk):
+    context = {
+    'pk': pk,
+    'process_list': Process.objects.all(),
+    'instrument_list': Instrument.objects.all()
+    }
+    return render(request, 'processinstrumentclassadd.html', context=context)
+
+def createnew(request):
+    """Has from scratch and from template links"""
+    return render(request, 'create_new.html', context={})
 
 class InstrumentAddView(TemplateView):
     template_name = "labmodel/instrument_form.html"
@@ -417,7 +563,7 @@ class InstrumentAddView(TemplateView):
         # Check if submitted forms are valid
         if formset.is_valid():
             formset.save()
-            return redirect(reverse("create-new"))
+            return redirect(reverse("class-add", args=(self.kwargs['pk'], )))
 
         return self.render_to_response({'instrument_formset': formset})
 
@@ -426,7 +572,7 @@ class ProcessCreate(CreateView):
     fields = ['name', ]
 
     def get_success_url(self):
-        return reverse("create-new")
+        return reverse_lazy("class-add", args=(self.kwargs['pk'], ))
 
 class InstrumentInstanceAddView(TemplateView):
     template_name = "labmodel/instrumentinstance_form.html"

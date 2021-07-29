@@ -7,41 +7,4 @@
     <li><a href="{% url 'lab-create' %}"><strong>From Scratch</strong></a></li>
     <li><a href="{% url 'template-list' %}"><strong>From Template</strong></a></li>
   </ul>
-  <div class="row">
-  <div class="col-sm">
-  	<h4>Existing Process Classes</h4>
-  	{% if process_list %}
-    <ul>
-
-      {% for process in process_list %}
-      <li>
-        {{ process.name }}
-      </li>
-      {% endfor %}
-    </ul>
-
-    {% else %}
-      <p>There are no processes yet.</p>
-    {% endif %}
-    <a href="{% url 'process-add' %}"><strong>Add new Process Class</strong></a>
-  </div>
-  <div class="col-sm">
-  	 <h4>Existing Instrument Classes</h4>
-  	{% if instrument_list %}
-    <ul>
-
-      {% for instrument in instrument_list %}
-      <li>
-        {{ instrument.name }}
-      </li>
-      {% endfor %}
-    </ul>
-
-    {% else %}
-      <p>There are no instruments yet.</p>
-    {% endif %}
-    <a href="{% url 'instrument-add' %}"><strong>Add new Instrument Class</strong></a>
-  </div>
-  </div>
-  
 {% endblock %}

@@ -60,6 +60,7 @@ class InstrumentInstance(models.Model):
 class Process(models.Model):
     """Model representing a Process."""
     name = models.CharField(max_length=25)
+    #lab = models.ForeignKey("Lab", on_delete=models.CASCADE, blank=True, null=True)
 
     def display_processinstanceinst(self):
     	"""Create a string for the Assay. This is required to display assays in Admin."""
@@ -153,6 +154,8 @@ class Lab(models.Model):
 class LabAnalysis(models.Model):
     """Model performing calculations on a lab."""
     lab = models.OneToOneField(Lab, on_delete=models.CASCADE, primary_key=True)
+    failure_rate = models.DecimalField('Failure Rate', max_digits=4, decimal_places=2, unique=False,
+        default=0)
 
     def instrument_utilization_samples(self, instrument, year):
         projections = {}

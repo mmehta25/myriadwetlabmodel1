@@ -1,0 +1,13 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+<h1 class="display-4">Analysis for Lab: {{ lab_analysis.lab.name }}</h1>
+<p>Computes instrument utilization using the projected number of samples for a given assay by year. Utilization is the ratio of the projected number of samples to be run on that instrument in a given year, and the maximal number of samples that can be run on that instrument in a year (given by: # of copies of that instrument * samples/day * days/month * 12 months)</p>
+  <h3>Instrument utilization (Hours)</h3>
+  {% autoescape off %}
+  {{ df_hours }}
+  {% endautoescape %}
+  {% autoescape off %}
+  {{ plot_div_hours }}
+  {% endautoescape %}
+{% endblock %}

@@ -21,10 +21,7 @@
               <th scope="row">{{ forloop.counter }}</th>
               <td> <a href="{% url 'lab-detail' lab.id%}">{{ lab.name }}</a></td>
               <td>
-                <ul style="list-style: none;">
-                  <li><a href="{% url 'lab-analysis' lab.id%}"> instrument utilizations</a></li>
-                  <li><a href=""> assay durations </a></li>
-                </ul>
+              <a href="{% url 'lab-analysis' lab.id%}"> view analysis</a>
               </td>
               <td>
                 <ul>
@@ -41,6 +38,4 @@
     {% else %}
       <p>There are no labs created by this user.</p>
     {% endif %}
-    <h1 class="display-4">View Sample Failure Rates</h1>
-    <a href="{% url 'snowflake' %}">failure rates</a>
 {% endblock %}

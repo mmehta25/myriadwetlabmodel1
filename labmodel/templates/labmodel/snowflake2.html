@@ -7,10 +7,10 @@
     </table>
     <input type="submit" value="Submit">
   </form>
-<h3>(IPS) Results from Snowflake Between: {{ low_date }}-{{ high_date }}:</h3>
+<h3> Idle times, Total Duration and Calculated Offset values by Instrument/Process: {{ low_date }}-{{ high_date }}:</h3>
   {% autoescape off %}
-  {{ failure_rates_df }}
+  {{ offset_df }}
   {% endautoescape %}
-<h4>Failure Rate: {{ rate }} </h4>
+<h4>Offset: {{ rate }} </h4>
 <p>Copy the failure rate for the desired three month period, and paste into the update failure rate entry field on the previous page.</p>
 {% endblock %}
