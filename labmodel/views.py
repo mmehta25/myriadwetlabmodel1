@@ -39,12 +39,12 @@ df_an = df_an['Asset numbers'].to_dict()
 """Snowflake credentials"""
 creds = {
     "account": "myriad",
-    "user": "mmehta",
+    "user": "",
     "database": "PRENATAL_NON_PHI_DB",
     "warehouse": "LOOKER_WH",
     "authenticator": "externalbrowser",
     "role": "PRENATAL_NON_PHI_LOOKER",
-    "password": "dret45onth"
+    "password": ""
 }
 
 def index(request):
