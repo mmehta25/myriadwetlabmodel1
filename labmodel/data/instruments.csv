@@ -1,0 +1,17 @@
+Instrument type,Asset numbers,Assay,Process,Num Instruments
+3730,"{'AN-433', 'AN-50125'}",FX,FX Electrophoresis,2
+ATC,"{'AN-50072', 'AN-703', 'AN-632', 'AN-50068', 'AN-50073', 'AN-50121', 'AN-50069'}",DTS IPS FX,DTS PCR IPS PCR FX PCR,7
+B1,"{'AN-1375', 'AN-431', 'AN-1592', 'AN-633'}","DTS, IPS",Library Prep,4
+B3,"{'AN-1836', 'AN-1326', 'AN-1837'}",IPS,IPS Cleanup,3
+BluePippin,"{'AN-50088', 'AN-50197', 'AN-50090', 'AN-50087', 'AN-50091', 'AN-50086', 'AN-50089'}",IPS,Size Selection,7
+Sonicman,"{'AN-689', 'AN-1874'}",DTS,Sonication,2
+T1,"{'AN-193', 'AN-237', 'AN-1800', 'AN-1788', 'AN-1787', 'AN-416', 'AN-304', 'AN-399', 'AN-206', 'AN-223', 'AN-186', 'AN-690', 'AN-184', 'AN-212', 'AN-303', 'AN-721'}","DTS, FX DTS, FX FX DTS IPS",Elution Quant FX Assay Stamp DTS PCR Stamp IPS PCR Stamp,16
+T2,"{'AN-720', 'AN-1789', 'AN-417'}",DTS FX DTS FX,Norm Build,3
+T3,"{'AN-193', 'AN-591', 'AN-1788', 'AN-1787', 'AN-448', 'AN-304', 'AN-753', 'AN-212', 'AN-303'}","DTS, FX",Extraction,9
+T5,"{'AN-590', 'AN-1836', 'AN-1837', 'AN-589'}",DTS DTS,DTS Cleanup DTS Consolidation,4
+T8,"{'AN-1116', 'AN-1535', 'AN-1115', 'AN-1654', 'AN-1490', 'AN-1534'}",IPS IPS,Plasma Sep cfExtraction,6
+T9,"{'AN-1834', 'AN-50105', 'AN-1835', 'AN-50075'}",IPS IPS IPS,Enrichment Cleanup IPS Consolidation Enrichment Consolidation,4
+cbot,"{'AN-1023', 'AN-541', 'AN-1269', 'AN-1550', 'AN-542', 'AN-438', 'AN-1076', 'AN-1250', 'AN-101', 'AN-1551', 'AN-613', 'AN-614'}",DTS IPS,DTS Hyb IPS Hyb,12
+hiSeq2500,"{'AN-539', 'AN-1801', 'AN-510', 'AN-1802', 'AN-803', 'AN-1374', 'AN-540', 'AN-1254', 'AN-612'}",DTS,DTS Sequencing,9
+hiSeq4000,"{'AN-1552', 'AN-1378', 'AN-1553', 'AN-1726', 'AN-50076'}",IPS,IPS Sequencing,5
+iSeq,"{'AN-50081', 'AN-50083', 'AN-50124', 'AN-50080', 'AN-50084', 'AN-50143'}",IPS,iSeq Sequencing,6

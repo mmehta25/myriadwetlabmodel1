@@ -19,13 +19,15 @@ import plotly.express as px
 import plotly
 from plotly.offline import plot
 import plotly.graph_objects as go
-from labmodel.forms import EditInstrumentForm, OffsetSliderForm, AddProcessForm, Labname_form, LabAssumptionsDropdownForm, ProcessDropdownForm, FailureRateDateRangeForm, OffsetDateRangeForm, LabAnalysisForm
-
+from labmodel.forms import EditInstrumentForm, OffsetSliderForm, AddProcessForm, Labname_form, LabAssumptionsDropdownForm, ProcessDropdownForm, FailureRateDateRangeForm, OffsetForm, LabAnalysisForm, LabForm
+import datetime
 import snowflake.connector as sf
 from snowflake.sqlalchemy import URL
 from sqlalchemy import create_engine
 from sqlalchemy.engine.url import make_url
 
+from .utils import process_dataframe
+from graphviz import Graph
 
 def index(request):
     """View function for home page of site."""
@@ -33,11 +35,6 @@ def index(request):
     # Generate counts of some of the main objects
     num_labs = Lab.objects.all().count()
     num_instrument_types = Instrument.objects.all().count()
-
-    context = {
-        'num_labs': num_labs,
-        'num_instrument_types': num_instrument_types,
-    }
 
     # Render the HTML template index.html with the data in the context variable
     return render(request, 'index.html', context=context)
@@ -102,15 +99,21 @@ def snowflake(request):
     
     return render(request, 'labmodel/snowflake.html', context=context)
 
+df_an = pd.read_csv('~/django_projects/myriadwetlab/labmodel/data/instruments.csv')
+df_an = df_an.set_index('Instrument type')
+df_an = df_an['Asset numbers'].to_dict()
+
 def snowflake2(request):
     if request.method == 'POST':
-        form = OffsetDateRangeForm(request.POST)
+        form = OffsetForm(request.POST)
         if form.is_valid():
-            date = form.cleaned_data['date']
-            date = str(date)
-            year = date[:4]
-            month = date[5:7]
-            day = date[8:]
+            instruments_string = form.cleaned_data['Instrument']
+            key = None
+            for k in df_an:
+                if df_an[k] == instruments_string:
+                    key = k
+                    instruments_string = instruments_string[1:-1]
+                    break
             creds = {
                 "account": "myriad", 
                 "user": "mmehta", 
@@ -121,46 +124,158 @@ def snowflake2(request):
                 "password": "dret45onth"
             }
             con = sf.connect(**creds)
+            con.close()
+            con = sf.connect(**creds)
             
             snowflake_url = make_url(f'snowflake://{creds["user"]}:xx@{creds["account"]}/{creds["database"]}/RAW?warehouse={creds["warehouse"]}&role={creds["role"]}')
-            snowflake_engine = create_engine(snowflake_url, creator=lambda: con)  # will error here without snowflake package 
-            connector = con
+            snowflake_engine = create_engine(snowflake_url, creator=lambda: con)  # will error here without snowflake package
             cursor = con.cursor()
             engine = snowflake_engine
-            sql = f"""SELECT 
-                        COUNT(result.id),
-                        result.review_state_code
-                        FROM GOLD.result as result
-                        WHERE (result.created_at < date_from_parts({year}, {month}, {day}) AND result.created_at >= (add_months(date_from_parts({year}, {month}, {day}),-3))) AND review_state_code != -1 AND substring(result.external_id,0,3)='IPS'
-                        GROUP BY 2""".format(year=year, month=month, day=day)
-            cursor.execute(sql)
-            data = []
-            data = cursor.fetchall()
-            df = pd.DataFrame(data)
+            sql = f"""SELECT
+                        DISTINCT
+                        eq.asset_number,
+                        eqt.status,
+                        eqt.method_name,
+                        eqt.timestamp,
+                        js.state_changed_at,
+                        js.state
+                    FROM GOLD.equipment AS eq
+                    INNER JOIN GOLD.labware_op_equipment as loe ON loe.equipment_id=eq.id
+                    INNER JOIN GOLD.labware_op AS lo ON lo.id=loe.labwareop_id
+                    INNER JOIN GOLD.equipment_timings AS eqt ON eqt.pipeline_job_id=lo.job_id
+                    INNER JOIN GOLD.job_state AS js ON js.job_id=lo.job_id
+                    WHERE eq.asset_number IN ({instruments_string}) AND eq.active AND eqt.status='DONE'
+                    AND eqt.timestamp > date_from_parts(2021, 08, 01) AND eqt.timestamp < date_from_parts(2021, 08, 03)""".format(instruments_string=instruments_string)
 
-            df.columns = ['Count', "Review State Code"]
-            if int(month) >= 4:
-                low_month = str(int(month) - 3)
-                low_year = year
-            else:
-                low_month = str(12+(int(month)-3))
-                low_year = str(int(year)-1)
-            failure = sum(list((df.loc[df['Review State Code'] == 0])['Count']))/sum(df['Count'])
+            cursor.execute(sql)
+            # rows = 0
+            # while rows == 0:
+            #     dat = cursor.fetchmany(100)
+            #     if not dat:
+            #         break
+            #     df = pd.DataFrame(dat, columns=cursor.description)
+            #     rows += df.shape[0]
+            data = []
+            df = cursor.fetch_pandas_all()
+            #data = cursor.fetchall()
+           # df = pd.DataFrame(data)
+
+
+            df.columns = ['ASSET_NUMBER',  'STATUS',  'METHOD_NAME', 'TIMESTAMP',   'STATE_CHANGED_AT',    'STATE']
+            res = process_dataframe(df)
+            dfs = res['dfs']
+            traces = {"x":[], "y1":[], "y2":[]}
+            for df in dfs:
+                traces['x'].append(df)
+                traces["y1"].append(dfs[df]['Offset'])
+                traces["y2"].append(dfs[df]['Idle'])
+            
+            fig = go.Figure(
+            data=[go.Box(name=traces['x'][i], y=traces['y1'][i]) for i in range(len(traces['x']))],
+            )
+            fig['layout'].update(width=900, height=900, autosize=False)
+            plot_div1 = plot(fig, output_type='div')
+
+
+            
+            fig2 = go.Figure(
+            data=[go.Box(name=traces['x'][i], y=traces['y2'][i]) for i in range(len(traces['x']))],
+            layout_title_text="Idle times"
+            )
+            fig['layout'].update(width=900, height=900, autosize=False)
+            plot_div2 = plot(fig2, output_type='div')
+            
             context = {
-            "low_date": low_month+"/"+day+"/"+low_year,
-            "high_date": month+"/"+day+"/"+year,
-            "form": form,
-            "rate": failure,
-            'offset_df': df.to_html(classes=["table", "table-hover"])
-            }
+                    "offset_boxplot": plot_div1,
+                    "idle_boxplot": plot_div2,
+                    "instrument_name": key,
+                    "instruments": instruments_string
+                }
             return render(request, 'labmodel/snowflake2.html', context=context)
         else:
             context = {"form": form}
     else:
-        form = FailureRateDateRangeForm()
+        form = OffsetForm()
         context = {"form": form}
     
     return render(request, 'labmodel/snowflake2.html', context=context)
+
+def scheduleview(request, pk):
+    lab = get_object_or_404(Lab, pk=pk)
+    offset = lab.offset
+    walkup_time = lab.walkup_hours
+    integrated_hours = datetime.timedelta(hours=int(lab.integrated_hours))
+    assays = lab.assay_set.all()
+    timings_by_day = {}
+
+    for assay in assays:
+        processes = assay.processinstance_set.all()
+        a = assay.name
+        print(str(a) +"has " + str(len(processes)) + "processes")
+        start_total = datetime.datetime(2021, 8, 16, 0, 0, 0)
+        total = start_total
+        n = 1
+        timings_by_day[a] = {}
+        timings_by_day[a]["day_"+ str(n)] = []
+        process_count = 0
+        total_processes = len(processes)
+        for process in processes:
+            p = process.subname
+            dur = process.duration * offset
+            hrs = int(round(dur))
+            mins = int(round((dur-hrs)*60))
+            duration = datetime.timedelta(hours=hrs, minutes=mins)
+            if duration > integrated_hours:
+                print("Start: " + str(total), "Finish: " + str(total + integrated_hours), "Process: "+ str(p) + "Assay: " + str(a))
+                timings_by_day[a]['day_' + str(n)].append({"Start": total, "Finish": total + integrated_hours, "Process": p, "Assay": a})
+                integrated_hours_left = integrated_hours - datetime.timedelta(hours=total.hour)
+                duration = duration - integrated_hours_left #left over hours for next day
+                start_total = start_total + datetime.timedelta(days=1) #switch start to next day
+                total = start_total
+                n += 1
+                timings_by_day[a]['day_' + str(n)] = []
+            elif total + duration > start_total + integrated_hours:
+                n += 1
+                start_total = start_total + datetime.timedelta(days=1) #switch start to next day
+                total = start_total
+                timings_by_day[a]['day_' + str(n)] = []
+            else:
+                if total + duration > start_total + datetime.timedelta(hours=int(walkup_time)) and process.only_walkup:
+                    n += 1
+                    start_total = start_total + datetime.timedelta(days=1) #switch start to next day
+                    total = start_total
+                    timings_by_day[a]['day_' + str(n)] = []
+            timings_by_day[a]['day_' + str(n)].append({"Start": total, "Finish": total + duration, "Process": p, "Assay": a})
+            total += duration
+            process_count += 1
+            if process_count == total_processes:
+                if 'IPS' in a:
+                    ips_turnaround_time = total - datetime.datetime(2021, 8, 16, 0, 0, 0)
+                if 'DTS' in a:
+                    dts_turnaround_time = total - datetime.datetime(2021, 8, 16, 0, 0, 0)
+    dfs = {}
+    for a in timings_by_day:
+        for t in timings_by_day[a]:
+            df = pd.DataFrame(timings_by_day[a][t])
+            if t in dfs:
+                dfs[t] = pd.concat([dfs[t], df])
+            else:
+                dfs[t] = df
+    plots = []
+    day = 0
+    for t in dfs:
+        day += 1
+        #plots.append(dfs[t].to_html(classes=["table", "table-hover"]))
+        fig = px.timeline(dfs[t], x_start="Start", x_end="Finish", y="Process", color="Assay", title="Day " + str(day) + ": ")
+        plots.append(plot(fig, output_type='div'))
+    context = {
+        "plots":plots,
+        "dts_time": dts_turnaround_time,
+        "ips_time": ips_turnaround_time,
+        "lab": lab,
+    }
+    return render(request, 'schedule.html', context=context)
+
 
 class UserLabsListView(LoginRequiredMixin,generic.ListView):
     """Generic class-based view listing labs created by current user."""
@@ -324,6 +439,9 @@ class LabAnalysisLabView(FormMixin, generic.DetailView):
 
         if 'failurerate_form' not in kwargs:
             kwargs['LabAnalysisForm'] = LabAnalysisForm()
+        
+        if 'offset_form' not in kwargs:
+            kwargs['OffsetForm'] = LabForm()
 
         return kwargs
 
@@ -338,10 +456,19 @@ class LabAnalysisLabView(FormMixin, generic.DetailView):
 
             if failurerateform.is_valid():
                 lab_analysis = self.get_object()
-                lab_analysis.failure_rate = failurerateform.cleaned_data['failure_rate']
+                lab_anaupperlysis.failure_rate = failurerateform.cleaned_data['failure_rate']
                 lab_analysis.save()
             else:
                 ctxt['failurerate_form'] = failurerateform
+        if 'offset_form' in request.POST:
+            offsetform = LabForm(request.POST)
+
+            if offsetform.is_valid():
+                lab = self.get_object().lab
+                lab.offset = offsetform.cleaned_data['offset']
+                lab.save()
+            else:
+                ctxt['offset_form'] = offsetform
 
         return render(request, self.template_name, self.get_context_data(**ctxt))
 def instrumentutilhours(request, pk):

@@ -44,7 +44,8 @@ class InstrumentInstance(models.Model):
     integrated_or_walkup_choices = (
         ('Integrated', 'Integrated'),
         ('Walkup', 'Walkup')
-    )  
+    )
+
     integrated_or_walkup = models.CharField(
         max_length=10,
         choices=integrated_or_walkup_choices,
@@ -88,7 +89,8 @@ class ProcessInstance(models.Model):
     assay = models.ForeignKey('Assay', on_delete=models.CASCADE, null=True, default=1)
     duration = models.DecimalField(max_digits=4, decimal_places=2, help_text='Duration in hours')
     sample_count = models.IntegerField(help_text='# of samples to process')
-
+    step_number = models.IntegerField(default=0, help_text="Enter the Step Number of this process.")
+    only_walkup = models.BooleanField(default = False, help_text='True if the process cannot be automated')
     def labdisplay(self):
         return self.assay.lab
 
@@ -107,7 +109,7 @@ class Assay(models.Model):
     samples_per_batch = models.IntegerField('Samples per batch', unique=False)
     projection_for_year_1 = models.IntegerField('Projection for next year', unique=False)
     projection_for_year_2 = models.IntegerField('Projection for 2 years from now', unique=False)
-    projection_for_year_3= models.IntegerField('Projection for 3 years from now', unique=False)
+    projection_for_year_3 = models.IntegerField('Projection for 3 years from now', unique=False)
     projection_for_year_4 = models.IntegerField('Projection for 4 years from now', unique=False)
     projection_for_year_5 = models.IntegerField('Projection for 5 years from now', unique=False)
     projection_for_year_6 = models.IntegerField('Projection for 6 years from now', unique=False)

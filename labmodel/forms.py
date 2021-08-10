@@ -3,6 +3,7 @@ from .models import Assay, ProcessInstance, Instrument, InstrumentInstance, Lab,
 from django import forms
 from .widgets import RangeInput
 import datetime
+import pandas as pd
 
 class AssayForm(ModelForm):
     class Meta:
@@ -80,6 +81,10 @@ class LabAnalysisForm(ModelForm):
     class Meta:
         model= LabAnalysis
         fields = ('failure_rate', )
+class LabForm(ModelForm):
+    class Meta:
+        model= Lab
+        fields = ('offset', )
 
 class FailureRateDateRangeForm(forms.Form):
     date = forms.DateField(input_formats=['%Y-%m-%d', ], initial=datetime.date.today, help_text="Pick end date for 3 month date range. Default is todays date.")
@@ -92,13 +97,14 @@ class FailureRateDateRangeForm(forms.Form):
         # Remember to always return the cleaned data.
         return data
 
-class OffsetDateRangeForm(forms.Form):
-    date = forms.DateField(input_formats=['%Y-%m-%d', ], initial=datetime.date.today, help_text="Pick end date for 3 month date range. Default is todays date.")
-    def clean_date(self):
-        data = self.cleaned_data['date']
+df_an = pd.read_csv('~/django_projects/myriadwetlab/labmodel/data/instruments.csv')
+df_an = df_an.set_index('Instrument type')
+df_an = df_an['Asset numbers'].to_dict()
 
-        # Check if a date is not in the past.
-        if data > datetime.date.today():
-            raise ValidationError(_('Invalid date - date in future'))
-        # Remember to always return the cleaned data.
-        return data
+inst_choices = []
+for key in df_an:
+    inst_choices.append((df_an[key], key))
+  
+# creating a form 
+class OffsetForm(forms.Form):
+    Instrument = forms.ChoiceField(choices = tuple(inst_choices), help_text="Pick an instrument type to view all data on all of its instances.")

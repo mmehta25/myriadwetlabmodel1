@@ -7,10 +7,14 @@
     </table>
     <input type="submit" value="Submit">
   </form>
-<h3> Idle times, Total Duration and Calculated Offset values by Instrument/Process: {{ low_date }}-{{ high_date }}:</h3>
+<h3> Offset Data for {{ instrument_name }}: </h3>
   {% autoescape off %}
-  {{ offset_df }}
+  {{ offset_boxplot }}
   {% endautoescape %}
-<h4>Offset: {{ rate }} </h4>
-<p>Copy the failure rate for the desired three month period, and paste into the update failure rate entry field on the previous page.</p>
+  {% autoescape off %}
+  {{ idle_boxplot }}
+  {% endautoescape %}
+
+
+
 {% endblock %}

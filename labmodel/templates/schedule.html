@@ -1,0 +1,13 @@
+{% extends "base_generic.html" %}
+{% block content %}
+<h2> Process Schedule </h2>
+<p><strong> Current Walkup time:</strong> {{ lab.walkup_hours }}</p>
+<h4>DTS turnaround time: {{ dts_time }} </h4>
+<h4>IPS turnaround time: {{ ips_time }} </h4>
+{% for p in plots %}
+  {% autoescape off %}
+    {{ p }}
+  {% endautoescape %}
+{% endfor %}
+
+{% endblock %}

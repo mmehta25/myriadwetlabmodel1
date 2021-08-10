@@ -10,6 +10,7 @@ urlpatterns = [
 	path('analysis/<int:pk>', views.LabAnalysisLabView.as_view(), name="lab-analysis"),
 	path('analysis/hours/<int:pk>', views.instrumentutilhours, name="inst-hours"),
 	path('analysis/samples/<int:pk>', views.instrumentutilsamples, name="inst-samples"),
+	path('analysis/schedule/<int:pk>', views.scheduleview, name="schedule"),
 	path('lab/<int:pk>', views.LabDetailView.as_view(), name='lab-detail'),
 	path('process/<pk>', views.ProcessInstanceDetailView.as_view(), name='processinstance-detail'),
 	##
