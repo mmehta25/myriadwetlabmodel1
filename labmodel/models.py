@@ -1,9 +1,10 @@
-from django.db import models
-from django.urls import reverse
-from django.contrib.auth.models import User
 import uuid
 
-# Create your models here.
+from django.contrib.auth.models import User
+from django.db import models
+from django.urls import reverse
+
+
 class Instrument(models.Model):
     """Model representing a generic instrument."""
     name = models.CharField(max_length=10)
@@ -25,10 +26,9 @@ class Instrument(models.Model):
         return reverse('instrument-detail', args=[str(self.id)])
 
 class InstrumentInstance(models.Model):
-    """Model representing a specific copy of an instrument (i.e. that can be borrowed from the library)."""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, help_text='Unique ID for this particular instrument')
-
-    #Foreign key used because an instrument instance can only have one instrument, but an instrument can have multiple instances of itself.
+    """Model representing a specific copy of an instrument"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, help_text="""Unique ID for this
+                                                                             particular instrument""")
     instrument = models.ForeignKey('Instrument', on_delete=models.CASCADE, null=True)
     samples_per_day = models.IntegerField()
     identical_copies = models.IntegerField()
@@ -59,9 +59,8 @@ class InstrumentInstance(models.Model):
         return f'{self.id} ({self.instrument.name})' #self.id will return 1 for first record, etc.
 
 class Process(models.Model):
-    """Model representing a Process."""
+    """Model representing a Process class."""
     name = models.CharField(max_length=25)
-    #lab = models.ForeignKey("Lab", on_delete=models.CASCADE, blank=True, null=True)
 
     def display_processinstanceinst(self):
     	"""Create a string for the Assay. This is required to display assays in Admin."""
@@ -83,6 +82,7 @@ class Process(models.Model):
         return f'{self.name}'
 
 class ProcessInstance(models.Model):
+    """Model representing a specific instance of a process class."""
     subname = models.CharField(max_length=25)
     instrument = models.ForeignKey('Instrument', on_delete=models.CASCADE, blank=True, null=True, default=1)
     process = models.ForeignKey(Process, on_delete=models.CASCADE, null=True, default=1)
@@ -125,7 +125,7 @@ class Assay(models.Model):
         return f'{self.name}'
 
 class Lab(models.Model):
-    """Model representing a lab."""
+    """Model representing a Lab."""
     name = models.CharField(max_length=20)
     current_year = models.IntegerField('Starting Year', unique=False, default=2021)
     days_per_month = models.IntegerField('Days per month', unique=False,
@@ -154,12 +154,13 @@ class Lab(models.Model):
 
 
 class LabAnalysis(models.Model):
-    """Model performing calculations on a lab."""
+    """Model performing calculations on a Lab."""
     lab = models.OneToOneField(Lab, on_delete=models.CASCADE, primary_key=True)
     failure_rate = models.DecimalField('Failure Rate', max_digits=4, decimal_places=2, unique=False,
         default=0)
 
     def instrument_utilization_samples(self, instrument, year):
+        """Computes instrument utilization by the number of samples."""
         projections = {}
         y = self.lab.current_year
         for assay in self.lab.assay_set.all():
@@ -192,7 +193,8 @@ class LabAnalysis(models.Model):
                 volume = projections[assay.name][year]
                 assay_sample_volume.append(volume)
 
-        max_samplesperday = [int(instrumentinst.identical_copies)*int(instrumentinst.samples_per_day) for instrumentinst in instruments]
+        max_samplesperday = [int(instrumentinst.identical_copies)*int(instrumentinst.samples_per_day)
+                            for instrumentinst in instruments]
         max_samplesperyear = sum(max_samplesperday)*daysperyear
         total_sample_volume = sum(assay_sample_volume)
         utilization = total_sample_volume/max_samplesperyear
@@ -200,6 +202,8 @@ class LabAnalysis(models.Model):
         return utilization
 
     def instrument_utilization_hours(self, instrument, year):
+        """Computes instrument utilization using durations
+        (hours). """
         projections = {}
         y = self.lab.current_year
         for assay in self.lab.assay_set.all():
@@ -236,11 +240,9 @@ class LabAnalysis(models.Model):
                         volume = projections[assay.name][year]
                         volume_projections.append(volume)
 
-        if len(volume_projections) != len(sample_counts):
-            print("Error: length of volume projections (", str(len(volume_projections)), ") does not match length of sample counts (", str(len(sample_counts)), ")")
-
         durations = [offset*float(process.duration) for process in processes_using_instrument]
-        total_run_hours_by_process = [(volume_projections[i]/(int(self.lab.days_per_month)*12*int(sample_counts[i])))*float(durations[i]) for i in range(len(volume_projections))]
+        total_run_hours_by_process = [(volume_projections[i]/(int(self.lab.days_per_month)*12*int(sample_counts[i])))*float(durations[i])
+                                      for i in range(len(volume_projections))]
         total_run_hours = sum(total_run_hours_by_process)
 
         utilization = total_run_hours/(num_integrated*int(self.lab.integrated_hours) + num_walkup*int(self.lab.walkup_hours))
